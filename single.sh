@@ -72,6 +72,15 @@ do
    find ${DIR}/ -name *.filetered.bam | env_parallel -j $nb_cores 'mv {1} {= s/.filetered//g; =}'
    echo "Move IDs files"
    find ${DIR}/ -name *.$bedlikeregion.id_reads.txt | parallel mv {1} /data/villemin/data/toulouse/scRNAseqPDX/testing/IDs
+
+    #https://sites.google.com/site/wiki4metagenomics/tools/samtools/converting-bam-to-fastq
+	# sort paired read alignment .bam file (sort by name -n)
+	#samtools sort -n SAMPLE.bam -o SAMPLE_sorted.bam
+
+	# save fastq reads in separate R1 and R2 files
+	#samtools fastq -@ 8 SAMPLE_sorted.bam -1 SAMPLE_R1.fastq.gz -i1 SAMPLE_I1.fastq.gz  -2 SAMPLE_R2.fastq.gz -i2 SAMPLE_I2.fastq.gz  -0 /dev/null -s /dev/null -n
+	#samtools view -H test.bam | grep @HD
+
 done
 }
 
@@ -93,7 +102,7 @@ DIR=/data/villemin/data/toulouse/scRNAseqPDX/testing
 
 FILES_FASTQ=`ls -1 ${DIR}/*.fastq.gz | grep "R1"`
 
-mapping
+#mapping
 
 FILES_BAM=`find ${DIR}/ -name *.bam`
 
