@@ -469,8 +469,4 @@ print(DimPlot(sce.to.seurat,shape.by="orig.ident",group.by = "phases.cyclone",ra
 dev.off()                                                     
                                                   
 # Save a seurat object... 
-                                               
-saveRDS(sce.to.seurat, glue("{base.dir}/{cond1}_vs_{cond2}.rds"))
-
-
-                                                                                                          
+saveRDS(sce.to.seurat,file = glue("{base.dir}/{cond1}_vs_{cond2}.rds"))
