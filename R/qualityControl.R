@@ -449,7 +449,12 @@ dev.off()
 # # I keep the meta.data from seurat , didn't succed to get back rowData so I reprocess seurat object.
 sce.to.seurat <- CreateSeuratObject(counts = counts(seurat.to.sce), meta.data = as.data.frame(colData(seurat.to.sce)))
 #print(head(data[[]]))# data@meta.data
- 
+                                                     
+# Lost in translation ....need to be re-added in final seurat object                                                
+
+sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_symbol", rownames(seurat.to.sce))
+sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_ensembl", res_annotated$ensembl_gene_id)
+
 # Redo that because we loose stuffs passing from sce to seurat
 sce.to.seurat <- NormalizeData(sce.to.seurat)
 sce.to.seurat <- FindVariableFeatures(sce.to.seurat, selection.method = "vst") #nFeatures=2000
