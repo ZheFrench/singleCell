@@ -444,16 +444,17 @@ dev.off()
 # ----------------------------------------------------------------------------------
 # Go back to seurat - It doesn't bring  colDat and rowData
 #sce.to.seurat <- as.Seurat(seurat.to.sce)# Doesn"t work 
-                                                     
+                                         
 # https://www.biostars.org/p/9464198/#9464336
 # # I keep the meta.data from seurat , didn't succed to get back rowData so I reprocess seurat object.
 sce.to.seurat <- CreateSeuratObject(counts = counts(seurat.to.sce), meta.data = as.data.frame(colData(seurat.to.sce)))
 #print(head(data[[]]))# data@meta.data
-                                                     
-# Lost in translation ....need to be re-added in final seurat object                                                
 
-sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_symbol", rownames(seurat.to.sce))
-sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_ensembl", res_annotated$ensembl_gene_id)
+# Lost in translation ....need to be re-added in final seurat object , doesn't work                                               
+#Erreur : Cannot add more or fewer cell meta.data information without values being named with cell names
+
+#sce.to.seurat <- AddMetaData(object = sce.to.seurat,metadata = rownames(seurat.to.sce),col.name = 'feature_symbol')
+#sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_ensembl", metadata = res_annotated$ensembl_gene_id)
 
 # Redo that because we loose stuffs passing from sce to seurat
 sce.to.seurat <- NormalizeData(sce.to.seurat)
