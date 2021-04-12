@@ -55,8 +55,14 @@ library(biomaRt)
 #######################################################################################################
 plotting = opt$plot
 set.seed(100)
-# nCount_RNA = the number of UMIs per cell nUMI
-# nFeature_RNA = the number of genes detected per cell nGene
+# nCount_RNA = sum =  the number of UMIs per cell nUMI
+# nFeature_RNA = detected ,the number of genes detected per cell nGene
+
+#                                  ident    sum    detected  total
+# CTL_Vertes_AAACGAAAGACGCAGT-1 CTL_Vertes 22036     4927 22036
+
+# mean is the mean UMI/count per cell.
+# detected is the number of umi/count for this feature
 # ------------------------------------------------------------------------------------------------------------
 #cond1 = "OSI_TIPI_Vertes"
 #cond2 = "OSI_TIPI_Rouges"
@@ -102,6 +108,7 @@ cond2.object$riboRatio <- PercentageFeatureSet(object = cond2.object, pattern = 
 ###################################        Merge        ##########################################
 
 data <- merge(cond1.object, cond2.object, add.cell.ids=c(cond1,cond2))
+#slotNames(data)
 
 # -------------------------
 #head(data@meta.data)
@@ -113,15 +120,32 @@ metadata <- data@meta.data
 #######################################################################################################
 ###################################            QC            ##########################################
 #######################################################################################################
+
+
+# Visualize Cells ordered by % ribosomal counts | % mitochondrial counts
+ordered.gene.ribo <- metadata[order(metadata$riboRatio),] %>% ggplot(aes( x = seq_along(riboRatio), y=riboRatio, color = orig.ident)) + geom_point()  + facet_grid(. ~ orig.ident) +
+  xlab("") +
+  ylab("Ncounts") +
+  ggtitle("Cells ordered by % ribosomal counts")
+
+ordered.gene.mito <- metadata[order(metadata$mitoRatio),]  %>% ggplot(aes( x = seq_along(mitoRatio), y=mitoRatio, color = orig.ident)) + geom_point()  + facet_grid(. ~ orig.ident) +
+  xlab("") +
+  ylab("Ncounts") +
+  ggtitle("Cells ordered by % mitochondrial counts")
+
+png(file = glue("{base.dir}/plots/{cond1}_{cond2}_mito_ribo_ordered_by_counts.png"),width = 1500,height = 500)
+print(ordered.gene.ribo | ordered.gene.mito)
+dev.off()
+
 counts.cell <- as.data.frame(table(metadata$orig.ident))
 colnames(counts.cell) <- c('Condition','Freq')
 
+
 # Visualize the number of cell counts per cell
 ccounts <- counts.cell %>% 
- ggplot(aes(x = Condition,y = Freq,, fill = factor(Condition) )  ) + 
+ ggplot(aes(x = Condition,y = Freq, fill = factor(Condition) )  ) + 
  geom_bar(alpha = 0.4 ,position="dodge",stat="identity",color="gray") +   coord_flip() +
  ggtitle("NCells")
-
 
 png(file = glue("{base.dir}/plots/{cond1}_{cond2}_totalCells_per_condition.png"),width = 1500,height = 500)
 print(ccounts)
@@ -345,6 +369,8 @@ colData(seurat.to.sce) <- cbind(colData(seurat.to.sce),perCellQCMetrics(seurat.t
 # total is the total UMIs per cell. nUMi, nCount
 # detected is the number of detected genes per cell . nFeature
 # sum ?
+#                                  ident    sum    detected  total
+# CTL_Vertes_AAACGAAAGACGCAGT-1 CTL_Vertes 22036     4927 22036
 
 rowData(seurat.to.sce) <- cbind(rowData(seurat.to.sce),perFeatureQCMetrics(seurat.to.sce)) # mean / detected
 # mean is the mean UMI/count per cell.
@@ -517,7 +543,7 @@ print( p2 + p3 + p4 )
 dev.off()      
                                                  
 histo.plot.phase <- as.data.frame(colData(seurat.to.sce)) %>% 
-ggplot(aes(x=orig.ident, fill=phases.cyclone)) + 
+ggplot(aes(x = orig.ident, fill = phases.cyclone)) + 
 geom_bar(alpha = 0.2,colour="black") +  
 ggtitle("NCells")
     
