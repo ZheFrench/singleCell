@@ -49,6 +49,7 @@ library(org.Hs.eg.db)
 library(stringr)
 library(biomaRt)
 
+#http://barc.wi.mit.edu/education/hot_topics/scRNAseq_2020/SingleCell_Seurat_2020.html
 #######################################################################################################
 ###################################       Load h5 files        ########################################
 #######################################################################################################
@@ -83,21 +84,67 @@ dim(x = data_condition1)
 dim(x = data_condition2)
 
 # Create individual Seurat objects
-cond1.object = CreateSeuratObject(data_condition1, project = cond1)
-cond2.object = CreateSeuratObject(data_condition2, project = cond2)
+cond1.object = CreateSeuratObject(data_condition1, project = cond1, assay = "RNA")
+cond2.object = CreateSeuratObject(data_condition2, project = cond2, assay = "RNA")
 
-cond1.object$log10GenesPerUMI <- log10(cond1.object$nFeature_RNA) / log10(cond1.object$nCount_RNA)
-cond2.object$log10GenesPerUMI <- log10(cond2.object$nFeature_RNA) / log10(cond2.object$nCount_RNA)
-
+cond1.object$log10GenesPerCount <- log10(cond1.object$nFeature_RNA) / log10(cond1.object$nCount_RNA)
+cond2.object$log10GenesPerCount <- log10(cond2.object$nFeature_RNA) / log10(cond2.object$nCount_RNA)
 
 # Compute percent mito ratio
 cond1.object$mitoRatio <- PercentageFeatureSet(object = cond1.object, pattern = "^MT-")
 cond2.object$mitoRatio <- PercentageFeatureSet(object = cond2.object, pattern = "^MT-")
 
+# Compute percent ribo ratio
+cond1.object$riboRatio <- PercentageFeatureSet(object = cond1.object, pattern = "^RP[SL]")
+cond2.object$riboRatio <- PercentageFeatureSet(object = cond2.object, pattern = "^RP[SL]")
+
+
+###################################        Merge        ##########################################
+
 data <- merge(cond1.object, cond2.object, add.cell.ids=c(cond1,cond2))
 
+# -------------------------
 #head(data@meta.data)
 head(data@meta.data)
+
+# Create metadata dataframe
+metadata <- data@meta.data
+
+#######################################################################################################
+###################################            QC            ##########################################
+#######################################################################################################
+
+
+# Counts per cell
+counts.per.cell <-  ggplot(metadata, aes(x = log10(as.numeric(nCount_RNA)+1)) )  +
+       geom_histogram(aes(color = orig.ident, fill = orig.ident),  position = "identity", bins = 30, alpha = 0.4 )  + facet_grid(. ~ orig.ident) +
+         xlab("") +
+  ylab("log10(counts+1)") +
+  ggtitle("Histogram :: Counts(UMI) per cell")
+
+# Genes per cell
+genes.per.cell <-  ggplot(metadata, aes(x = log10(as.numeric(nFeature_RNA)+1)) )  +
+       geom_histogram(aes(color = orig.ident, fill = orig.ident),  position = "identity", bins = 30, alpha = 0.4 )  + facet_grid(. ~ orig.ident) +
+  xlab("") +
+  ylab("log10(nFeature_RNA+1)") +
+  ggtitle("Histogram ::  Genes(Features) per cell")
+
+png(file = glue("{base.dir}/plots/{cond1}_{cond2}_count_and_genes_per_cell_histogram.png"),width = 1500,height = 500)
+print(counts.per.cell / genes.per.cell)
+dev.off()
+
+
+ordered.gene <- metadata[order(metadata$nFeature_RNA),] %>% ggplot(aes( x = seq_along(nFeature_RNA), y=nFeature_RNA, color = orig.ident)) + geom_point()  + facet_grid(. ~ orig.ident) +
+  xlab("") +
+  ylab("NFeatures") +
+  ggtitle("Cells ordered by Nfeatures")
+
+png(file = glue("{base.dir}/plots/{cond1}_{cond2}_cells_ordered_by_Nfeatures.png"),width = 1500,height = 500)
+print(ordered.gene)
+dev.off()
+
+
+
 
 #Low library size: When cells are very degraded or absent from the library preparation, the number of reads sequenced from that library will be very low. It’s important to remove these cells from downstream analyses.
 
@@ -108,14 +155,9 @@ head(data@meta.data)
 #Batch effect: Large scRNA-seq projects usually need to generate data across multiple batches due to logistical constraints. However, the processing of different batches is often subject to variation, e.g., changes in operator, differences in reagent quality and concentration, the sequencing machine used, etc. This results in systematic differences in the observed expression in cells from different batches, which we refer to as “batch effects”. Batch effects are problematic as they can be major drivers of variation in the data, masking the relevant biological differences and complicating interpretation of the results.
 # Filter out low quality reads using selected thresholds - these will change with experiment
 
-# -------------------------
-# Create metadata dataframe
-metadata <- data@meta.data
 
 
-#######################################################################################################
 ###################################       Seurat QC        ############################################
-#######################################################################################################
     
 
 if (plotting){
@@ -137,8 +179,8 @@ density.plot.nFeature_RNA <- metadata %>%
   theme_classic() +
   ylab("Cell density")
 
-density.plot.log10GenesPerUMI <- metadata %>% 
-  ggplot(aes(color=orig.ident, x = log10GenesPerUMI, fill = orig.ident)) + 
+density.plot.log10GenesPerCount <- metadata %>% 
+  ggplot(aes(color=orig.ident, x = log10GenesPerCount, fill = orig.ident)) + 
    geom_density(alpha = 0.2) + 
   scale_x_log10() + 
   theme_classic() +
@@ -152,16 +194,39 @@ density.plot.mitoRatio <- metadata %>%
   ylab("Cell density") 
  #+ geom_vline(xintercept = 500)
 
-png(file = glue("{base.dir}/plots/{cond1}_vs_{cond2}_RNA_density.png"),width = 1500,height = 500)
-print(density.plot.nCount_RNA + density.plot.nFeature_RNA  + density.plot.log10GenesPerUMI  + density.plot.mitoRatio )
+  
+density.plot.riboRatio <- metadata %>% 
+  ggplot(aes(color=orig.ident, x = riboRatio, fill = orig.ident)) + 
+   geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("Cell density") 
+    
+png(file = glue("{base.dir}/plots/{cond1}_vs_{cond2}_RNA_density.png"),width = 1850,height = 500)
+print(density.plot.nCount_RNA + density.plot.nFeature_RNA  + density.plot.log10GenesPerCount  + density.plot.mitoRatio + density.plot.riboRatio )
 dev.off()
     
 # -------------------------
+png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_nFeature_RNA_scatter.png"),width = 1000,height = 500)
+p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+print(p)
+dev.off()
 
+png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_percent.mito_scatter.png"),width = 1000,height = 500)
+p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "percent.mito")
+print(p)
+dev.off()
+    
+ png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_percent.ribo_scatter.png"),width = 1000,height = 500)
+p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "percent.ribo")
+print(p)
+dev.off()
+    
+    
 print("::: QC PLOT - Seurat :::")
 
 png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_violonQC.png"),width = 1500,height = 500)
-print(VlnPlot(object = data, features = c("nFeature_RNA", "nCount_RNA", "mitoRatio","log10GenesPerUMI"), ncol = 4)  + theme(  axis.text = element_text( size = 14)))
+print(VlnPlot(object = data, features = c("nFeature_RNA", "nCount_RNA", "mitoRatio","riboRatio","log10GenesPerCount"), ncol = 4)  + theme(  axis.text = element_text( size = 14)))
 dev.off()
 
 # Visualize the distribution of cell cycle markers across
@@ -173,8 +238,9 @@ dev.off()
 }
 
 
-
 data <- NormalizeData(data)
+dim(x = data)
+
 
 # Add Cell Cycle (need to be normalized before)
 #https://github.com/satijalab/seurat/issues/1679
@@ -271,11 +337,13 @@ rowData(seurat.to.sce) <- cbind(rowData(seurat.to.sce),perFeatureQCMetrics(seura
 print(head(colData(seurat.to.sce)))
 print(head(rowData(seurat.to.sce)))
 
+###################################      Scatter QC            #########################################
+
 if (plotting){
     
 print ("::: QC PLOT - scater :::")
 
-# Plot an overview of expression for each cell
+# Plot an overview of expression for each cell # Scater fonction...
 png(file = glue("{base.dir}/plots/{cond1}_vs_{cond2}_n_cells_by_counts.png"),width = 1000,height = 500)
 print(plotRowData(seurat.to.sce, y="detected", x="mean") +  scale_x_log10())
 dev.off()
@@ -306,6 +374,7 @@ dev.off()
 ###################################      Filtering            #########################################
 #######################################################################################################
 print ("::: Filtering (TODO) :::")
+#selected_ribo <- sce.filt$subsets_ribo_percent > 5
 
 #filtered_seurat.cond1 <- subset(x = cond1.object,subset= (nUMI >= 9000) &(nGene >= 2800) &(log10GenesPerUMI >= 0.8) & (mitoRatio < 0.20))
 # 4006_red
