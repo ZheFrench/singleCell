@@ -113,6 +113,19 @@ metadata <- data@meta.data
 #######################################################################################################
 ###################################            QC            ##########################################
 #######################################################################################################
+counts.cell <- as.data.frame(table(metadata$orig.ident))
+colnames(counts.cell) <- c('Condition','Freq')
+
+# Visualize the number of cell counts per cell
+ccounts <- counts.cell %>% 
+ ggplot(aes(x = Condition,y = Freq,, fill = factor(Condition) )  ) + 
+ geom_bar(alpha = 0.4 ,position="dodge",stat="identity",color="gray") +   coord_flip() +
+ ggtitle("NCells")
+
+
+png(file = glue("{base.dir}/plots/{cond1}_{cond2}_totalCells_per_condition.png"),width = 1500,height = 500)
+print(ccounts)
+dev.off()
 
 
 # Counts per cell
@@ -213,12 +226,12 @@ print(p)
 dev.off()
 
 png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_percent.mito_scatter.png"),width = 1000,height = 500)
-p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "percent.mito")
+p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "mitoRatio")
 print(p)
 dev.off()
     
- png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_percent.ribo_scatter.png"),width = 1000,height = 500)
-p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "percent.ribo")
+png(file=glue("{base.dir}/plots/{cond1}_vs_{cond2}_nCount_RNA_vs_percent.ribo_scatter.png"),width = 1000,height = 500)
+p <- FeatureScatter(object = data, feature1 = "nCount_RNA", feature2 = "riboRatio")
 print(p)
 dev.off()
     
@@ -278,7 +291,10 @@ data <- ScaleData(data, features = rownames(data))
 ###################################       PCA            ########################################
 #######################################################################################################
 
-# Perform PCA
+# Perform PCA 
+
+#VizPCA(object = pbmc, pcs.use = 1:2)
+
 
 if (FALSE) { 
 data <- JackStraw(data, num.replicate = 100)
