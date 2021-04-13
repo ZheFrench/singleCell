@@ -2,6 +2,42 @@
 export PATH=/data/villemin/soft/cellranger-6.0.0:$PATH
 
 ###############################################################################
+############     Cell Ranger -   scRNAseqCells-1    ##########################
+###############################################################################
+
+/data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=4006_rouge \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=4006_rouge \
+   --localcores=16 \
+   --localmem=64   
+            
+/data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=4006_verte \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=4006_verte \
+   --localcores=16 \
+   --localmem=64   
+
+   /data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=pc9_rouge \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=pc9_rouge \
+   --localcores=16 \
+   --localmem=64   
+
+   /data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=pc9_verte \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=pc9_verte \
+   --localcores=16 \
+   --localmem=64   
+
+exit 0
+
+
+
+###############################################################################
 ############     Cell Ranger - PDX GRCh38_and_mm10  / GRCh38     #############
 ###############################################################################
 #FASTQ contains sequence base with character other than [ACGTN].: file: "/data/USERS/villemin/data/toulouse/scRNAseqPDX/Human_CTL_S1_L001_R1_001.fastq.gz", line: 8
