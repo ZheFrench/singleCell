@@ -120,8 +120,9 @@ print("rowData")
 print(head(rowData(sce.Object)))
 
 # remove lowly expressed gene
+# Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (all conditions)
 dim(sce.Object) #33694
-sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 150, ]
+#sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
 dim(sce.Object) #12247
 
 sce.Object$sample_id    <- paste(sce.Object$orig.ident, "-", sce.Object$subgroup,sep = "")
@@ -142,7 +143,10 @@ m <- match(sids, sce.Object$sample_id)
 n_cells <- as.numeric(table(sce.Object$sample_id))
 ei <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
 print("ei")
-print(head(ei))
+
+synthese <- ei[, c("sample_id","n_cells")]
+print(synthese)
+
 
 # Aggregate across cluster-sample groups
 groups <- colData(sce.Object)[, c("sample_id")]
@@ -160,37 +164,60 @@ matrix.rnaseq.cse <- SingleCellExperiment(assays =list(counts=t(matrix.rnaseq)) 
 
 matrix.rnaseq.cse
 # Add QC metrics from scater
-colData(matrix.rnaseq.cse) <- cbind(colData(matrix.rnaseq.cse),perCellQCMetrics(matrix.rnaseq.cse)) # sum / detected / total
-rowData(matrix.rnaseq.cse) <- cbind(rowData(matrix.rnaseq.cse),perFeatureQCMetrics(matrix.rnaseq.cse)) # mean / detected
+colData(matrix.rnaseq.cse) <- cbind(colData(matrix.rnaseq.cse),perCellQCMetrics(matrix.rnaseq.cse)) # sum / detected / total , threshold > 0 at least one count
+rowData(matrix.rnaseq.cse) <- cbind(rowData(matrix.rnaseq.cse),perFeatureQCMetrics(matrix.rnaseq.cse)) # mean / detected is %
 
 print("##### SPEUDO BULK ######")
 
 print("coldData")
 print(head(colData(matrix.rnaseq.cse)))
+write.csv(colData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_colData.csv"), row.names = TRUE)
+
 
 print("rowData")
 print(head(rowData(matrix.rnaseq.cse)))
-
-stop()
-
+write.csv(rowData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_rowData.csv"),  row.names = TRUE)
 
 
+#https://satijalab.org/seurat/archive/v3.0/de_vignette.html
 
 sce.filt <- logNormCounts(matrix.rnaseq.cse)
 
 dec <- modelGeneVar(sce.filt, block = sce.filt$sample_id)
 hvgs = getTopHVGs(dec, n = 2000)
 
-sce.filt <- runPCA(sce.filt, use_coldata = TRUE, detect_outliers = TRUE)
+sce.filt <- runPCA(sce.filt)
 
-png(file = glue("{base.dir}/plots/{cond1}_{cond2}_PCA.png"),width = 1500,height = 500)
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_PCA.png"),width = 1500,height = 500)
 plotReducedDim(sce.filt, use_dimred="PCA_coldata", colour_by = "ident")
 dev.off()
 
-png(file = glue("{base.dir}/plots/Dim_PCA.png"),width = 1500,height = 500)
+png(file = glue("{base.dir}/DE/Dim_PCA.png"),width = 1500,height = 500)
 vdl <- VizDimLoadings(object = sce.filt, dims = 1:3)
 print(vdl)
 dev.off()
 # Creating up a DGEList object for use in edgeR:
-
 #y <- DGEList(counts(sce.Object), samples=colData(sce.Object))
+
+# ----------------------------------------------------------------------------------
+# Go back to seurat - It doesn't bring  colDat and rowData
+#sce.to.seurat <- as.Seurat(seurat.to.sce)# Doesn"t work 
+                                         
+# https://www.biostars.org/p/9464198/#9464336
+# # I keep the meta.data from seurat , didn't succed to get back rowData so I reprocess seurat object.
+sce.to.seurat <- CreateSeuratObject(counts = counts(seurat.to.sce), meta.data = as.data.frame(colData(seurat.to.sce)))
+#print(head(data[[]]))# data@meta.data
+
+# Lost in translation ....need to be re-added in final seurat object , doesn't work                                               
+#Erreur : Cannot add more or fewer cell meta.data information without values being named with cell names
+
+#sce.to.seurat <- AddMetaData(object = sce.to.seurat,metadata = rownames(seurat.to.sce),col.name = 'feature_symbol')
+#sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_ensembl", metadata = res_annotated$ensembl_gene_id)
+
+# Redo that because we loose stuffs passing from sce to seurat
+sce.to.seurat <- NormalizeData(sce.to.seurat)
+sce.to.seurat <- FindVariableFeatures(sce.to.seurat, selection.method = "vst") #nFeatures=2000
+sce.to.seurat <- ScaleData(sce.to.seurat, features = rownames(sce.to.seurat))
+# ----------------------------------------------------------------------------------
+   
+sce.to.seurat <- RunPCA(sce.to.seurat, features = VariableFeatures(sce.to.seurat))
