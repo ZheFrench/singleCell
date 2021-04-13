@@ -19,7 +19,7 @@
 #################################################################
 library(plyr)
 library(dplyr)
-library(tidyverse)
+#library(tidyverse)
 
 library(Seurat)
 library(glue)
@@ -35,7 +35,7 @@ library(magrittr)
 library(edgeR)
 library(data.table)
 library(Matrix.utils)
-
+library(BiocParallel)
 #######################################################################################################
 ###################################       Load h5 files        ########################################
 #######################################################################################################
@@ -123,6 +123,11 @@ print(head(rowData(sce.Object)))
 # Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (all conditions)
 dim(sce.Object) #33694
 #sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
+#ave.counts <- rowMeans(counts(sce))
+#keep <- rowMeans(counts(sce)) >= 0.2
+#sce <- sce[keep,]
+#nrow(sce)
+
 dim(sce.Object) #12247
 
 sce.Object$sample_id    <- paste(sce.Object$orig.ident, "-", sce.Object$subgroup,sep = "")
@@ -144,7 +149,7 @@ n_cells <- as.numeric(table(sce.Object$sample_id))
 ei <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
 print("ei")
 
-synthese <- ei[, c("sample_id","n_cells")]
+synthese <- ei[, c("sample_id","orig.ident","n_cells")]
 print(synthese)
 
 
@@ -162,7 +167,6 @@ matrix.rnaseq <- aggregate.Matrix(t(counts(sce.Object)), groupings = groups, fun
 # construct SCE of pseudo-bulk counts
 matrix.rnaseq.cse <- SingleCellExperiment(assays =list(counts=t(matrix.rnaseq))  )
 
-matrix.rnaseq.cse
 # Add QC metrics from scater
 colData(matrix.rnaseq.cse) <- cbind(colData(matrix.rnaseq.cse),perCellQCMetrics(matrix.rnaseq.cse)) # sum / detected / total , threshold > 0 at least one count
 rowData(matrix.rnaseq.cse) <- cbind(rowData(matrix.rnaseq.cse),perFeatureQCMetrics(matrix.rnaseq.cse)) # mean / detected is %
@@ -180,8 +184,44 @@ write.csv(rowData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_r
 
 
 #https://satijalab.org/seurat/archive/v3.0/de_vignette.html
+sce <- logNormCounts(matrix.rnaseq.cse) #logNormCounts # plotExplanatoryVariables
+var <- modelGeneVar(sce, BPPARAM = MulticoreParam(workers = 8), assay.type = "logcounts")
 
-sce.filt <- logNormCounts(matrix.rnaseq.cse)
+dge <- convertTo(sce, type="edgeR") #DESeq2
+
+condition  <- factor(sce.Object$orig.ident)
+
+dge$samples$group <- sub("^(.*)-[0-9]", "\\1", rownames(dge$samples))
+dge$samples$group <- relevel(factor(dge$samples$group),ref=cond2)
+
+comp      <- glue("{cond1}-{cond2}")
+
+de.design <- model.matrix(~0 + dge$samples$group)
+colnames(de.design) <- gsub("^dge\\$samples\\$group","",colnames(de.design))
+colnames(de.design)
+cm <- makeContrasts(contrasts = comp,levels = dge$samples$group)
+
+print("de.design")
+y      <- estimateDisp(dge, de.design,robust=T)
+
+fit.y <- glmFit(y, de.design)
+lrt     <- glmLRT(fit.y,contrast=cm)
+
+# https://f1000research.com/articles/5-2122/v2 next step when you want to compare one vs all others.
+
+# no filter
+print("topTag")
+
+result <-topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=1)
+
+write.table(as.data.frame(result),file=glue("{base.dir}/DE/{cond1}_{cond2}-differential.tsv"),quote=FALSE,row.names=TRUE,sep="\t")
+
+print("summary")
+summary(dt<-decideTestsDGE(lrt, p.value = 0.05))
+
+stop()
+
+
 
 dec <- modelGeneVar(sce.filt, block = sce.filt$sample_id)
 hvgs = getTopHVGs(dec, n = 2000)
