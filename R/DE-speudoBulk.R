@@ -23,7 +23,8 @@
 #
 # Description : 
 #
-# SpeudoBulk.R differetial Epresssion (DE) of scRNA-SEQ
+# SpeudoBulk.R differential Epresssion (DE) of scRNA-SEQ
+# Randomly assign equal number of cells in 3 groups, sum up reads, and do differential expression analysis
 #
 #################################################################
 
@@ -72,8 +73,6 @@ base.dir = "/data/villemin/data/toulouse/scRNAseqCells-2/CellRanger"
 # ------------------------------------------------------------------------------------------------------------
 dir.create(glue("{base.dir}/DE"), showWarnings = F)
 
-
-if (FALSE){
     
 print(" Loading RDS.. ")
     
@@ -87,6 +86,12 @@ print(head(seurat.Object[[]])) # data@meta.data
 # Switch seurat object to SingleCellExperiment (Nat methods 2020)
 sce.Object       <- as.SingleCellExperiment(seurat.Object)
 sce.Object$ident <- sce.Object$orig.ident # Important due to a bug.
+
+print(glue("# Total Genes {dim(sce.Object)[1]}"))
+# Remove lowly expressed gene at cell level
+# Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (per conditions)
+sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
+print(glue("# Filtered Genes {dim(sce.Object)[1]}"))
 
 length(sce.Object$ident)#5775
 
@@ -111,13 +116,6 @@ sce.Object[, sce.Object$ident==cond1]$subgroup <- random1
 print("set random2")
 sce.Object[, sce.Object$ident==cond2]$subgroup <- random2
 
-# Save a seurat object... 
-saveRDS(sce.Object,file = glue("{base.dir}/{cond1}_vs_{cond2}_subgroup.rds"))
-    
-}
-
-sce.Object <- readRDS(file = glue("{base.dir}/{cond1}_vs_{cond2}_subgroup.rds"))
-
 
 #######################################################################################################
 ###################################      DIFF EDGER          ##########################################
@@ -131,13 +129,6 @@ print("##### INITIAL SINGLE CELLS ######")
 #print("rowData")
 #print(head(rowData(sce.Object)))
 
-print(glue("# Total Genes {dim(sce.Object)[1]}"))
-# Remove lowly expressed gene at cell level
-# Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (all conditions)
-sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
-print(glue("# Filtered Genes {dim(sce.Object)[1]}"))
-
-
 sce.Object$sample_id    <- paste(sce.Object$orig.ident, "-", sce.Object$subgroup,sep = "")
 
 # Not clear what kind of  witchcraft is used with m & subset.exp . Finger crossed.
@@ -146,11 +137,12 @@ n_cells    <- as.numeric(table(sce.Object$sample_id))
 subset.exp <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
 n_cells.speudoBulk.resume   <- subset.exp[, c("sample_id","orig.ident","n_cells")]
 print(n_cells.speudoBulk.resume)
+write.table(n_cells.speudoBulk.resume ,file = glue("{base.dir}/DE/{cond1}_{cond2}-nCell-speudoBulks.tsv"),quote=F,row.names=F,sep="\t")
 
 # Aggregate across cluster-sample groups
 groups <- colData(sce.Object)[, c("sample_id")]
 # split by cluster, transform & rename columns
-matrix.rnaseq <- aggregate.Matrix(t(counts(sce.Object)), groupings = groups, fun = "sum")     
+matrix.rnaseq <- aggregate.Matrix(t(counts(sce.Object)), groupings = groups, fun = "sum")   # Sum can be biased if you have a big diff in number of cells between two groups  
 
 counts=t(matrix.rnaseq)
 # ---------------------------------------------------------------------------------------------
@@ -268,39 +260,37 @@ length(which(threshold_OE))
 ## Add logical vector as a column (threshold) to the res_tableOE
 result$threshold <- threshold_OE 
 
-## Sort by ordered padj
-result <- result[order(result$FDR), ] 
+## Sort by ordered logFC
+result <- result[order(abs(result$logFC), decreasing = TRUE), ] 
 ## Create a column to indicate which genes to label
 n.top = 20
 result$genelabels <- ""
 result$genelabels[1:n.top] <- result$genes[1:n.top]
 IDS <- as.character(result$genelabels[1:n.top])
-print(IDS)
+
 ## Volcano plot log10(0.1)-> -1
 png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
 ggplot(as.data.frame(result)) +
         geom_point(aes(x = logFC, y = -log10(FDR + 0.1), colour = threshold)) +
         geom_text_repel(aes(x = logFC, y = -log10(FDR + 0.1), label = ifelse(as.character(result$genes) %in% IDS  , IDS,"")),max.overlaps = Inf) +
         xlab("Log2 fold change") + 
-        ylab("-Log10 FDR+0.1") +
-        #scale_y_continuous(limits = c(0,50)) +
-        theme(legend.position = "none")             
+        ylab("-Log10 FDR+0.1")        +
+        geom_hline(yintercept=-log10(0.1+0.05) ) + 
+        geom_vline(xintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))  +
+        theme(legend.position = "none" ) 
 dev.off()
 
-### Run pheatmap
-### Extract normalized expression for significant genes
-typeof(IDS)
-typeof(rownames(result))    
-rows.to.keep <- which(as.character(rownames(result)) %in% IDS)
-print(rows.to.keep)
-norm_OEsig <- result[rows.to.keep,]
-head(norm_OEsig)
-stop()
+### Run pheatmap using n.top
+df.heatmap <- result[result$genes %in% IDS,]
+rownames(df.heatmap) <- df.heatmap$genes
+drop <- c("genelabels","threshold")
+df.heatmap <-df.heatmap[,!(names(df.heatmap) %in% drop)]   
 ### Annotate our heatmap (optional)
 #annotation <- data.frame(sampletype=mov10_meta[,'sampletype'],row.names=rownames(mov10_meta))
 #annotation = annotation,anno <- as.data.frame(colData(vsd)[, c("cell","dex")])
 ### Set a color palette
 heat_colors <- brewer.pal(6, "YlOrRd")
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
-pheatmap(norm_OEsig, color = heat_colors, cluster_rows = T, show_rownames=T,border_color=NA, fontsize = 10, scale="row",fontsize_row = 10, height=20)
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_heatmap.png"),width = 500,height = 1000)
+pheatmap(df.heatmap[,9:length(names(df.heatmap)) ], color = heat_colors, cluster_rows = T, show_rownames=T,border_color=NA, fontsize = 10, scale="row",fontsize_row = 10, height=20)
 dev.off()
+
