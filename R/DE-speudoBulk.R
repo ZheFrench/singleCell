@@ -10,55 +10,65 @@
 # DE-speudoBulk.R
 # Usage : 
 # 
-# speudoBulk.R ~TODO
+# speudoBulk.R 
+#
+# Source : 
 # https://hbctraining.github.io/scRNA-seq/lessons/pseudobulk_DESeq2_scrnaseq.html
+# http://biocworkshops2019.bioconductor.org.s3-website-us-east-1.amazonaws.com/page/OSCABioc2019__OSCABioc2019/
+# http://biocworkshops2019.bioconductor.org.s3-website-us-east-1.amazonaws.com/page/muscWorkshop__vignette/
+# https://hbctraining.github.io/scRNA-seq/lessons/pseudobulk_DESeq2_scrnaseq.html
+# https://satijalab.org/seurat/archive/v3.0/de_vignette.html
+# https://github.com/csoneson/conquer_comparison/tree/master/scripts
+# https://f1000research.com/articles/5-2122/v2 next step when you want to compare one vs all others.
+#
 # Description : 
 #
 # SpeudoBulk.R differetial Epresssion (DE) of scRNA-SEQ
 #
 #################################################################
-library(plyr)
-library(dplyr)
-#library(tidyverse)
 
-library(Seurat)
-library(glue)
-library(hdf5r)
-library(scater) # Davis McCarthy Bioinformatics 2017 Scater: pre-processing, quality control, normalisation and visualisation of single-cell RNA-seq data in R
-library(patchwork)
-library(SingleCellExperiment)# Robert A. Amzequita 2019 Nature merthods Orchestrating single-cell analysis with Bioconductor
-library(scran)
-library(org.Hs.eg.db)
-library(stringr)
-library(biomaRt)
-library(magrittr)
-library(edgeR)
-library(data.table)
-library(Matrix.utils)
-library(BiocParallel)
+suppressPackageStartupMessages(library(plyr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(glue))
+suppressPackageStartupMessages(library(hdf5r))
+suppressPackageStartupMessages(library(scater)) # Davis McCarthy Bioinformatics 2017 Scater: pre-processing, quality control, normalisation and visualisation of single-cell RNA-seq data 
+suppressPackageStartupMessages(library(patchwork))
+suppressPackageStartupMessages(library(SingleCellExperiment))# Robert A. Amzequita 2019 Nature merthods Orchestrating single-cell analysis with Bioconductor
+suppressPackageStartupMessages(library(scran))
+suppressPackageStartupMessages(library(org.Hs.eg.db))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(biomaRt))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(edgeR))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(Matrix.utils))
+suppressPackageStartupMessages(library(BiocParallel))
+suppressPackageStartupMessages(library(limma))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(pheatmap))
+suppressPackageStartupMessages(library(RColorBrewer))
+
 #######################################################################################################
 ###################################       Load h5 files        ########################################
 #######################################################################################################
 plotting = FALSE
 set.seed(100)
-# nCount_RNA = the number of UMIs per cell nUMI
+# nCount_RNA   = the number of UMIs per cell nUMI
 # nFeature_RNA = the number of genes detected per cell nGene
 # ------------------------------------------------------------------------------------------------------------
 #cond1 = "OSI_TIPI_Vertes"
 #cond2 = "OSI_TIPI_Rouges"
-
+#cond1 = PC9_verte
+#cond2 = PC9_rouge
+#cond1 = "4006_verte"
+#cond2 = "4006_rouge"
+#base.dir = "/data/villemin/data/toulouse/scRNAseqCells-1/CellRanger"
 cond1 = "CTL_Vertes"
 cond2 = "CTL_Rouges"
 
 base.dir = "/data/villemin/data/toulouse/scRNAseqCells-2/CellRanger"
 
-#cond1 = PC9_verte
-#cond2 = PC9_rouge
-
-#cond1 = "4006_verte"
-#cond2 = "4006_rouge"
-
-#base.dir = "/data/villemin/data/toulouse/scRNAseqCells-1/CellRanger"
 # ------------------------------------------------------------------------------------------------------------
 dir.create(glue("{base.dir}/DE"), showWarnings = F)
 
@@ -70,19 +80,15 @@ print(" Loading RDS.. ")
 seurat.Object <- readRDS(file = glue("{base.dir}/{cond1}_vs_{cond2}.rds"))
 print(head(seurat.Object[[]])) # data@meta.data
 
-#######################################################################################################
-###################################      DE speudo bulk           #####################################
-#######################################################################################################
-    
-#Idents(cd14.mono) <- "stim"
-    
+################################################################################################################
+###################################      Create Speudo-Bulk data          ########################################
+################################################################################################################
+ 
 # Switch seurat object to SingleCellExperiment (Nat methods 2020)
-sce.Object <- as.SingleCellExperiment(seurat.Object)
-sce.Object$ident <- sce.Object$orig.ident
+sce.Object       <- as.SingleCellExperiment(seurat.Object)
+sce.Object$ident <- sce.Object$orig.ident # Important due to a bug.
 
 length(sce.Object$ident)#5775
-# Check the assays present
-#print(head(colData(sce.Object)))
 
 nrows.cond1 = dim(sce.Object[, sce.Object$ident == cond1])[2]
 nrows.cond2 = dim(sce.Object[, sce.Object$ident == cond2])[2]
@@ -112,61 +118,59 @@ saveRDS(sce.Object,file = glue("{base.dir}/{cond1}_vs_{cond2}_subgroup.rds"))
 
 sce.Object <- readRDS(file = glue("{base.dir}/{cond1}_vs_{cond2}_subgroup.rds"))
 
-print("##### INITIAL ######")
-print("coldData")
-print(head(colData(sce.Object)))
 
-print("rowData")
-print(head(rowData(sce.Object)))
+#######################################################################################################
+###################################      DIFF EDGER          ##########################################
+#######################################################################################################
 
-# remove lowly expressed gene
+print("##### INITIAL SINGLE CELLS ######")
+
+#print("coldData")
+#print(head(colData(sce.Object)))
+
+#print("rowData")
+#print(head(rowData(sce.Object)))
+
+print(glue("# Total Genes {dim(sce.Object)[1]}"))
+# Remove lowly expressed gene at cell level
 # Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (all conditions)
-dim(sce.Object) #33694
-#sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
-#ave.counts <- rowMeans(counts(sce))
-#keep <- rowMeans(counts(sce)) >= 0.2
-#sce <- sce[keep,]
-#nrow(sce)
+sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
+print(glue("# Filtered Genes {dim(sce.Object)[1]}"))
 
-dim(sce.Object) #12247
 
 sce.Object$sample_id    <- paste(sce.Object$orig.ident, "-", sce.Object$subgroup,sep = "")
 
-# just in order to get the same names as tutorial
-#sce.Object$group.id    <- sce.Object$orig.ident
-# cluster.id  <- orig.ident equals group.id in tutorial
-
-nk <- length( kids <- sce.Object$orig.ident[!duplicated(sce.Object$orig.ident)] )         
-ns <- length( sids <- unique(sce.Object$sample_id) )
-
-#print (nk)
-#print (ns)
-
-m <- match(sids, sce.Object$sample_id)
-#print(m)
-#3334 3333 3339    7    1    3
-n_cells <- as.numeric(table(sce.Object$sample_id))
-ei <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
-print("ei")
-
-synthese <- ei[, c("sample_id","orig.ident","n_cells")]
-print(synthese)
-
+# Not clear what kind of  witchcraft is used with m & subset.exp . Finger crossed.
+m          <- match(unique(sce.Object$sample_id), sce.Object$sample_id)
+n_cells    <- as.numeric(table(sce.Object$sample_id))
+subset.exp <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
+n_cells.speudoBulk.resume   <- subset.exp[, c("sample_id","orig.ident","n_cells")]
+print(n_cells.speudoBulk.resume)
 
 # Aggregate across cluster-sample groups
 groups <- colData(sce.Object)[, c("sample_id")]
 # split by cluster, transform & rename columns
-matrix.rnaseq <- aggregate.Matrix(t(counts(sce.Object)), groupings = groups, fun = "sum") 
+matrix.rnaseq <- aggregate.Matrix(t(counts(sce.Object)), groupings = groups, fun = "sum")     
 
-#http://biocworkshops2019.bioconductor.org.s3-website-us-east-1.amazonaws.com/page/OSCABioc2019__OSCABioc2019/
-#http://biocworkshops2019.bioconductor.org.s3-website-us-east-1.amazonaws.com/page/muscWorkshop__vignette/
-#https://hbctraining.github.io/scRNA-seq/lessons/pseudobulk_DESeq2_scrnaseq.html
+counts=t(matrix.rnaseq)
+# ---------------------------------------------------------------------------------------------
+# Remove lowly expressed gene at speudo-bulk level
+# At leat 5 reads in 3 of pseudo bulk samples over 6
 
-#matrix.rnaseq <- split(matrix.rnaseq, unique(sce.Object$sample_id))  %>% lapply(function(u)  set_colnames(t(u), unname(sids))  )
-                                                              
+good <- apply(counts,1,function(x) sum(x>5))>=3
+print(glue("# Filtered Genes {sum(good)}"))
+counts <- counts[good,]
+
+# Remove  method from JC based on TMM, no need to do that twice, edgeR take into account raw reads.
+# https://www.biostars.org/p/317701/ 
+# q <- apply(counts,2,function(x) quantile(x[x>0],prob=0.75))
+# ncounts <- sweep(counts,2,q/median(q),"/")
+
+# ---------------------------------------------------------------------------------------------
+
+           
 # construct SCE of pseudo-bulk counts
-matrix.rnaseq.cse <- SingleCellExperiment(assays =list(counts=t(matrix.rnaseq))  )
-
+matrix.rnaseq.cse <- SingleCellExperiment(assays =list(counts=counts))
 # Add QC metrics from scater
 colData(matrix.rnaseq.cse) <- cbind(colData(matrix.rnaseq.cse),perCellQCMetrics(matrix.rnaseq.cse)) # sum / detected / total , threshold > 0 at least one count
 rowData(matrix.rnaseq.cse) <- cbind(rowData(matrix.rnaseq.cse),perFeatureQCMetrics(matrix.rnaseq.cse)) # mean / detected is %
@@ -175,89 +179,122 @@ print("##### SPEUDO BULK ######")
 
 print("coldData")
 print(head(colData(matrix.rnaseq.cse)))
-write.csv(colData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_colData.csv"), row.names = TRUE)
-
+#write.csv(colData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_colData.csv"), row.names = TRUE)
 
 print("rowData")
 print(head(rowData(matrix.rnaseq.cse)))
-write.csv(rowData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_rowData.csv"),  row.names = TRUE)
+#write.csv(rowData(matrix.rnaseq.cse), file=glue("{base.dir}/DE/{cond1}_{cond2}_rowData.csv"),  row.names = TRUE)
 
 
-#https://satijalab.org/seurat/archive/v3.0/de_vignette.html
-sce <- logNormCounts(matrix.rnaseq.cse) #logNormCounts # plotExplanatoryVariables
-var <- modelGeneVar(sce, BPPARAM = MulticoreParam(workers = 8), assay.type = "logcounts")
+#######################################################################################################
+###################################      DIFF EDGER          ##########################################
+
+#######################################################################################################
+sce <- logNormCounts(matrix.rnaseq.cse) 
+#var <- modelGeneVar(sce, BPPARAM = MulticoreParam(workers = 8), assay.type = "logcounts")
 
 dge <- convertTo(sce, type="edgeR") #DESeq2
-
-condition  <- factor(sce.Object$orig.ident)
 
 dge$samples$group <- sub("^(.*)-[0-9]", "\\1", rownames(dge$samples))
 dge$samples$group <- relevel(factor(dge$samples$group),ref=cond2)
 
-comp      <- glue("{cond1}-{cond2}")
+comp     <- glue("{cond1}-{cond2}")
 
 de.design <- model.matrix(~0 + dge$samples$group)
 colnames(de.design) <- gsub("^dge\\$samples\\$group","",colnames(de.design))
-colnames(de.design)
-cm <- makeContrasts(contrasts = comp,levels = dge$samples$group)
 
-print("de.design")
-y      <- estimateDisp(dge, de.design,robust=T)
+cm     <- makeContrasts(contrasts = comp,levels = dge$samples$group)
 
-fit.y <- glmFit(y, de.design)
-lrt     <- glmLRT(fit.y,contrast=cm)
+dge    <- estimateDisp(dge, de.design,robust=T)
 
-# https://f1000research.com/articles/5-2122/v2 next step when you want to compare one vs all others.
+fit.y  <- glmFit(dge, de.design)
+lrt    <- glmLRT(fit.y,contrast=cm)
 
-# no filter
-print("topTag")
+#names(dge)
+names(lrt)
+#######################################################################################################
+###################################      FILES          ###############################################
+#######################################################################################################
+    
+print("Writing differential results...")
 
-result <-topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=1)
+result <- as.data.frame( topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=1))
+result <- cbind(genes = rownames(result), result, row.names = NULL)
 
-write.table(as.data.frame(result),file=glue("{base.dir}/DE/{cond1}_{cond2}-differential.tsv"),quote=FALSE,row.names=TRUE,sep="\t")
-
-print("summary")
-summary(dt<-decideTestsDGE(lrt, p.value = 0.05))
-
-stop()
+result     <- cbind(result,dge$counts[result$genes,])
 
 
+write.table(result,file = glue("{base.dir}/DE/{cond1}_{cond2}-differential.tsv"),quote=F,row.names=F,sep="\t")
 
-dec <- modelGeneVar(sce.filt, block = sce.filt$sample_id)
-hvgs = getTopHVGs(dec, n = 2000)
+result_up    <- subset(result, ( logFC >= 1.5 & FDR < 0.05 ))
+result_up <- result_up[order(abs(result_up$logFC),decreasing = TRUE),]
+write.table(result_up,file = glue("{base.dir}/DE/{cond1}_{cond2}-differential-up.tsv"),quote=F,row.names=F,sep="\t")
 
-sce.filt <- runPCA(sce.filt)
+result_down <- subset(result, ( logFC <= -1.5 & FDR < 0.05 ))
+result_down <- result_down[order(abs(result_down$logFC),decreasing = TRUE),]
+write.table(result_down,file = glue("{base.dir}/DE/{cond1}_{cond2}-differential-down.tsv"),quote=F,row.names=F,sep="\t")
 
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_PCA.png"),width = 1500,height = 500)
-plotReducedDim(sce.filt, use_dimred="PCA_coldata", colour_by = "ident")
+summary <- as.data.frame(summary(dt<-decideTestsDGE(lrt, adjust.method="BH",p.value = 0.05,lfc = 1.5)))
+colnames(summary)[1] <- "FC"
+colnames(summary)[2] <- "Analyse"
+write.table(summary ,file = glue("{base.dir}/DE/{cond1}_{cond2}-summary.tsv"),quote=F,row.names=F,sep="\t")
+
+#######################################################################################################
+###################################      PLOTS          ###############################################
+#######################################################################################################
+    
+print("Plotting...")
+#Plot the genewise biological coefficient of variation (BCV) against gene abundance (in log2 counts per million).
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_BCV.png"),width = 500,height = 500)
+plotBCV(dge,xlab="Average log CPM", ylab="Biological coefficient of variation", pch=16, cex=0.2) 
 dev.off()
 
-png(file = glue("{base.dir}/DE/Dim_PCA.png"),width = 1500,height = 500)
-vdl <- VizDimLoadings(object = sce.filt, dims = 1:3)
-print(vdl)
+#Both of these functions plot the log-fold change (i.e. the log of the ratio of expression levels for each gene between two experimential groups) against the log-concentration (i.e. the overall average expression level for each gene across the two groups). To represent counts that were low (e.g. zero in 1 library and non-zero in the other) in one of the two conditions, a 'smear' of points at low A value is presented in 'plotSmear'
+de.genes <- rownames(topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=0.05)$table)
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_smear.png"),width = 500,height = 500)
+plotSmear(lrt, de.tags=de.genes,xlab="Average logCPM", ylab="logFC", pch=19, cex=0.2)
 dev.off()
-# Creating up a DGEList object for use in edgeR:
-#y <- DGEList(counts(sce.Object), samples=colData(sce.Object))
 
-# ----------------------------------------------------------------------------------
-# Go back to seurat - It doesn't bring  colDat and rowData
-#sce.to.seurat <- as.Seurat(seurat.to.sce)# Doesn"t work 
-                                         
-# https://www.biostars.org/p/9464198/#9464336
-# # I keep the meta.data from seurat , didn't succed to get back rowData so I reprocess seurat object.
-sce.to.seurat <- CreateSeuratObject(counts = counts(seurat.to.sce), meta.data = as.data.frame(colData(seurat.to.sce)))
-#print(head(data[[]]))# data@meta.data
+#Plot samples on a two-dimensional scatterplot so that distances on the plot approximate the typical log2 fold changes between the samples.
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_mds.png"),width = 500,height = 500)
+limma::plotMDS(dge, col = as.numeric(as.factor(dge$samples$group)) , labels= dge$samples$group , pch = 24)
+dev.off()
 
-# Lost in translation ....need to be re-added in final seurat object , doesn't work                                               
-#Erreur : Cannot add more or fewer cell meta.data information without values being named with cell names
+## Obtain logical vector regarding whether padj values are less than 0.05
+threshold_OE <- result$FDR < 0.05 
+## Determine the number of TRUE values
+length(which(threshold_OE))
+## Add logical vector as a column (threshold) to the res_tableOE
+result$threshold <- threshold_OE 
 
-#sce.to.seurat <- AddMetaData(object = sce.to.seurat,metadata = rownames(seurat.to.sce),col.name = 'feature_symbol')
-#sce.to.seurat <- AddMetaData(sce.to.seurat,col.name="feature_ensembl", metadata = res_annotated$ensembl_gene_id)
+## Sort by ordered padj
+result <- result[order(result$FDR), ] 
+## Create a column to indicate which genes to label
+result$genelabels <- ""
+result$genelabels[1:10] <- result$genes[1:10]
 
-# Redo that because we loose stuffs passing from sce to seurat
-sce.to.seurat <- NormalizeData(sce.to.seurat)
-sce.to.seurat <- FindVariableFeatures(sce.to.seurat, selection.method = "vst") #nFeatures=2000
-sce.to.seurat <- ScaleData(sce.to.seurat, features = rownames(sce.to.seurat))
-# ----------------------------------------------------------------------------------
-   
-sce.to.seurat <- RunPCA(sce.to.seurat, features = VariableFeatures(sce.to.seurat))
+head(result)
+## Volcano plot
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 5000)
+ggplot(as.data.frame(result)) +
+        geom_point(aes(x = logFC, y = -log10(FDR), colour = threshold)) +
+         geom_text_repel(aes(x = logFC, y = -log10(FDR), label = ifelse(genelabels == T, genes,""))) +
+        xlab("Log2 fold change") + 
+        ylab("-Log10 FDR") +
+        #scale_y_continuous(limits = c(0,50)) +
+        theme(legend.position = "none")             
+dev.off()
+
+### Run pheatmap
+### Extract normalized expression for significant genes
+norm_OEsig <- dge$counts[result$genelabels,]
+head(norm_OEsig)
+### Annotate our heatmap (optional)
+#annotation <- data.frame(sampletype=mov10_meta[,'sampletype'],row.names=rownames(mov10_meta))
+#annotation = annotation,
+### Set a color palette
+heat_colors <- brewer.pal(6, "YlOrRd")
+
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
+pheatmap(dge$counts[result$genelabels,], color = heat_colors, cluster_rows = T, show_rownames=F,border_color=NA, fontsize = 10, scale="row",fontsize_row = 10, height=20)
+dev.off()
