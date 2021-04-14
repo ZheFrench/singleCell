@@ -36,18 +36,18 @@ print(opt$condition1)
 print(opt$condition2)
 print(opt$plot)
 
-library(plyr)
-library(dplyr)
-library(Seurat)
-library(glue)
-library(hdf5r)
-library(scater) # Davis McCarthy Bioinformatics 2017 Scater: pre-processing, quality control, normalisation and visualisation of single-cell RNA-seq data in R
-library(patchwork)
-library(SingleCellExperiment)# Robert A. Amzequita 2019 Nature merthods Orchestrating single-cell analysis with Bioconductor
-library(scran)
-library(org.Hs.eg.db)
-library(stringr)
-library(biomaRt)
+suppressPackageStartupMessages(library(plyr))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(Seurat))
+suppressPackageStartupMessages(library(glue))
+suppressPackageStartupMessages(library(hdf5r))
+suppressPackageStartupMessages(library(scater)) # Davis McCarthy Bioinformatics 2017 Scater: pre-processing, quality control, normalisation and visualisation of single-cell RNA-seq data 
+suppressPackageStartupMessages(library(patchwork))
+suppressPackageStartupMessages(library(SingleCellExperiment))# Robert A. Amzequita 2019 Nature merthods Orchestrating single-cell analysis with Bioconductor
+suppressPackageStartupMessages(library(scran))
+suppressPackageStartupMessages(library(org.Hs.eg.db))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(biomaRt))
 
 #http://barc.wi.mit.edu/education/hot_topics/scRNAseq_2020/SingleCell_Seurat_2020.html
 #######################################################################################################

@@ -5,6 +5,22 @@ export PATH=/data/villemin/soft/cellranger-6.0.0:$PATH
 ############     Cell Ranger -   scRNAseqCells-1    ##########################
 ###############################################################################
 
+/data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=PC9_rouge \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=PC9_rouge \
+   --localcores=16 \
+   --localmem=64   
+
+/data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=PC9_verte \
+--transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
+   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
+   --sample=PC9_verte \
+   --localcores=16 \
+   --localmem=64   
+
+exit 0
+
 /data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=4006_rouge \
 --transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
    --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
@@ -18,22 +34,6 @@ export PATH=/data/villemin/soft/cellranger-6.0.0:$PATH
    --sample=4006_verte \
    --localcores=16 \
    --localmem=64   
-
-   /data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=pc9_rouge \
---transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
-   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
-   --sample=pc9_rouge \
-   --localcores=16 \
-   --localmem=64   
-
-   /data/villemin/soft/cellranger-6.0.0/bin/cellranger count --id=pc9_verte \
---transcriptome=/data/USERS/villemin/genome/xenome/10X/GRCh38 \
-   --fastqs=/data/villemin/data/toulouse/scRNAseqCells-1 \
-   --sample=pc9_verte \
-   --localcores=16 \
-   --localmem=64   
-
-exit 0
 
 
 
