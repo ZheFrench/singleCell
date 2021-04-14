@@ -210,8 +210,9 @@ dge    <- estimateDisp(dge, de.design,robust=T)
 fit.y  <- glmFit(dge, de.design)
 lrt    <- glmLRT(fit.y,contrast=cm)
 
+head(de.design)
 #names(dge)
-names(lrt)
+#names(lrt)
 #######################################################################################################
 ###################################      FILES          ###############################################
 #######################################################################################################
@@ -270,31 +271,36 @@ result$threshold <- threshold_OE
 ## Sort by ordered padj
 result <- result[order(result$FDR), ] 
 ## Create a column to indicate which genes to label
+n.top = 20
 result$genelabels <- ""
-result$genelabels[1:10] <- result$genes[1:10]
-
-head(result)
-## Volcano plot
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 5000)
+result$genelabels[1:n.top] <- result$genes[1:n.top]
+IDS <- as.character(result$genelabels[1:n.top])
+print(IDS)
+## Volcano plot log10(0.1)-> -1
+png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
 ggplot(as.data.frame(result)) +
-        geom_point(aes(x = logFC, y = -log10(FDR), colour = threshold)) +
-         geom_text_repel(aes(x = logFC, y = -log10(FDR), label = ifelse(genelabels == T, genes,""))) +
+        geom_point(aes(x = logFC, y = -log10(FDR + 0.1), colour = threshold)) +
+        geom_text_repel(aes(x = logFC, y = -log10(FDR + 0.1), label = ifelse(as.character(result$genes) %in% IDS  , IDS,"")),max.overlaps = Inf) +
         xlab("Log2 fold change") + 
-        ylab("-Log10 FDR") +
+        ylab("-Log10 FDR+0.1") +
         #scale_y_continuous(limits = c(0,50)) +
         theme(legend.position = "none")             
 dev.off()
 
 ### Run pheatmap
 ### Extract normalized expression for significant genes
-norm_OEsig <- dge$counts[result$genelabels,]
+typeof(IDS)
+typeof(rownames(result))    
+rows.to.keep <- which(as.character(rownames(result)) %in% IDS)
+print(rows.to.keep)
+norm_OEsig <- result[rows.to.keep,]
 head(norm_OEsig)
+stop()
 ### Annotate our heatmap (optional)
 #annotation <- data.frame(sampletype=mov10_meta[,'sampletype'],row.names=rownames(mov10_meta))
-#annotation = annotation,
+#annotation = annotation,anno <- as.data.frame(colData(vsd)[, c("cell","dex")])
 ### Set a color palette
 heat_colors <- brewer.pal(6, "YlOrRd")
-
 png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
-pheatmap(dge$counts[result$genelabels,], color = heat_colors, cluster_rows = T, show_rownames=F,border_color=NA, fontsize = 10, scale="row",fontsize_row = 10, height=20)
+pheatmap(norm_OEsig, color = heat_colors, cluster_rows = T, show_rownames=T,border_color=NA, fontsize = 10, scale="row",fontsize_row = 10, height=20)
 dev.off()
