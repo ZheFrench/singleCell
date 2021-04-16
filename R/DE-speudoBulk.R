@@ -49,7 +49,6 @@ suppressPackageStartupMessages(library(limma))
 suppressPackageStartupMessages(library(ggrepel))
 suppressPackageStartupMessages(library(pheatmap))
 suppressPackageStartupMessages(library(RColorBrewer))
-library(purrr)
 
 #######################################################################################################
 ###################################       Load h5 files        ########################################

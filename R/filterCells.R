@@ -412,18 +412,18 @@ if (FALSE) {
     dev.off() 
 
     # ----------------------------------------------------------------------------------
-    print("Cyclone PCA")
-    data <- RunPCA(data, features = VariableFeatures(data))
+    #print("Cyclone PCA")
+    #data <- RunPCA(data, features = VariableFeatures(data))
 
-    png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesBigVariance_pca_cyclone.png"),width = 1500,height = 500)
-    print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2))
-    dev.off() 
+    #png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesBigVariance_pca_cyclone.png"),width = 1500,height = 500)
+    #print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2))
+    #dev.off() 
 
-    data <- RunPCA(data, features = c(cc.genes$s.genes, cc.genes$g2m.genes))
+    #data <- RunPCA(data, features = c(cc.genes$s.genes, cc.genes$g2m.genes))
 
-    png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesCellCycle_pca_cylone.png"),width = 1500,height = 500)
-    print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2) )   
-    dev.off() 
+    #png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesCellCycle_pca_cylone.png"),width = 1500,height = 500)
+    #print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2) )   
+    #dev.off() 
                           
 
 #print("::: Data after Normalization & PCA :::")# data@meta.data
@@ -467,10 +467,10 @@ thresholds <- fread(opt$input,data.table=F)
                                                      
 rownames(thresholds) <-  thresholds$FEATURE
 thresholds           <- subset(thresholds , select = -FEATURE ) 
-                                          
+print(thresholds)                                         
 for (condition in experiments.list ) {
    
-    
+    print(condition)   
     # min.cells Include features detected in at least this many cells. Will subset the counts matrix as well. To reintroduce excluded features, create a new object with a lower cutoff.
     # min.features Include cells where at least this many features are detected.
     
@@ -485,14 +485,23 @@ experiments.list[[condition]]$seurat.object  <-  CreateSeuratObject(Read10X_h5(g
    experiments.list[[condition]]$seurat.object$riboRatio          <-  PercentageFeatureSet(object = experiments.list[[condition]]$seurat.object, pattern = "^RP[SL]")
    experiments.list[[condition]]$dimension                        <-  dim(x = experiments.list[[condition]]$seurat.object)
     
-    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,
-                    subset = (nCount_RNA >= thresholds["nCount_RNA",condition]) & 
-                    (nFeature >= thresholds["nFeature",condition]) & 
-                    (log10GenesPerCount >= thresholds["log10GenesPerCount",condition]) & 
-                    (mitoRatio < thresholds["mitoRatio",condition] ) & 
-                    (riboRatio < thresholds["riboRatio",condition] )
-                    )
+    print("Filters...")
+    print(thresholds["nCount_RNA",condition])
+    print(thresholds["nFeature_RNA",condition])
+    print(thresholds["log10GenesPerCount",condition])
+    print(thresholds["mitoRatio",condition])
+    print(thresholds["riboRatio",condition])
+    
+    print(head(experiments.list[[condition]]$seurat.object@meta.data))
+    #https://nbisweden.github.io/workshop-scRNAseq/labs/compiled/scater/scater_01_qc.html
+    dim(experiments.list[[condition]]$seurat.object)
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nCount_RNA >= thresholds["nCount_RNA",condition]  )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nFeature_RNA >= thresholds["nFeature_RNA",condition]  )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = log10GenesPerCount >=thresholds["log10GenesPerCount",condition] )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = mitoRatio < thresholds["mitoRatio",condition]  )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = riboRatio > thresholds["riboRatio",condition] )
 
+    dim(experiments.list[[condition]]$seurat.object)     
     print("====> Control.Quality")
     # Create metadata dataframe
     seurat.to.sce <- control.quality (experiments.list[[condition]]$seurat.object,"Clean",condition)
