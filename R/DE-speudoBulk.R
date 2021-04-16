@@ -49,6 +49,7 @@ suppressPackageStartupMessages(library(limma))
 suppressPackageStartupMessages(library(ggrepel))
 suppressPackageStartupMessages(library(pheatmap))
 suppressPackageStartupMessages(library(RColorBrewer))
+library(purrr)
 
 #######################################################################################################
 ###################################       Load h5 files        ########################################
@@ -186,7 +187,17 @@ sce <- logNormCounts(matrix.rnaseq.cse)
 #var <- modelGeneVar(sce, BPPARAM = MulticoreParam(workers = 8), assay.type = "logcounts")
 
 dge <- convertTo(sce, type="edgeR") #DESeq2
+# This normalizes the library sizes by finding a set of scaling factors
+# for the library sizes that minimizes the log-fold changes between the samples for most genes.
+# The default method for computing these scale factors uses a trimmed mean of M-values (TMM) between each pair of samples    
+# We call the product of the original library size and the scaling factor the effective library size. The effective library size replaces the original library size in all downsteam analyses.
 
+print("DGE samples.")
+dge$samples        
+dge <- calcNormFactors(dge)
+print("DGE after Library Sizes Normalisation by TMM")
+dge$samples
+              
 dge$samples$group <- sub("^(.*)-[0-9]", "\\1", rownames(dge$samples))
 dge$samples$group <- relevel(factor(dge$samples$group),ref=cond2)
 
@@ -197,6 +208,8 @@ colnames(de.design) <- gsub("^dge\\$samples\\$group","",colnames(de.design))
 
 cm     <- makeContrasts(contrasts = comp,levels = dge$samples$group)
 
+
+              
 dge    <- estimateDisp(dge, de.design,robust=T)
 
 fit.y  <- glmFit(dge, de.design)
@@ -245,7 +258,7 @@ dev.off()
 #Both of these functions plot the log-fold change (i.e. the log of the ratio of expression levels for each gene between two experimential groups) against the log-concentration (i.e. the overall average expression level for each gene across the two groups). To represent counts that were low (e.g. zero in 1 library and non-zero in the other) in one of the two conditions, a 'smear' of points at low A value is presented in 'plotSmear'
 de.genes <- rownames(topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=0.05)$table)
 png(file = glue("{base.dir}/DE/{cond1}_{cond2}_smear.png"),width = 500,height = 500)
-plotSmear(lrt, de.tags=de.genes,xlab="Average logCPM", ylab="logFC", pch=19, cex=0.2)
+plotSmear(lrt, de.tags=de.genes,xlab="Average logCPM", ylab="logFC", pch=19, cex=0.2) + geom_hline(yintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))
 dev.off()
 
 #Plot samples on a two-dimensional scatterplot so that distances on the plot approximate the typical log2 fold changes between the samples.
