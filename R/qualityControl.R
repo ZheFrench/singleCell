@@ -412,18 +412,19 @@ if (FALSE) {
     dev.off() 
 
     # ----------------------------------------------------------------------------------
-    print("Cyclone PCA")
-    data <- RunPCA(data, features = VariableFeatures(data))
+    #Erreur : Cannot find 'phases.cyclone' in this Seurat object
+    #print("Cyclone PCA")
+    #data <- RunPCA(data, features = VariableFeatures(data))
 
-    png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesBigVariance_pca_cyclone.png"),width = 1500,height = 500)
-    print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2))
-    dev.off() 
+    #png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesBigVariance_pca_cyclone.png"),width = 1500,height = 500)
+    #print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2))
+    #dev.off() 
 
-    data <- RunPCA(data, features = c(cc.genes$s.genes, cc.genes$g2m.genes))
+    #data <- RunPCA(data, features = c(cc.genes$s.genes, cc.genes$g2m.genes))
 
-    png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesCellCycle_pca_cylone.png"),width = 1500,height = 500)
-    print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2) )   
-    dev.off() 
+    #png(file=glue("{base.dir}/plots/{status}_{analysed.conditions.string}_genesCellCycle_pca_cylone.png"),width = 1500,height = 500)
+    #print(DimPlot(data,shape.by="orig.ident",group.by = "phases.cyclone",raster = FALSE,pt.size = 2) )   
+    #dev.off() 
                           
 
 #print("::: Data after Normalization & PCA :::")# data@meta.data
