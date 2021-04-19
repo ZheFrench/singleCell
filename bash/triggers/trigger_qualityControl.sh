@@ -17,7 +17,8 @@
 #
 # Will call Rscript to execute quality controls.
 #
-#################################################################
+
+#Cell ranger directories need to be in the same dir.
 
 #ln -s /data/villemin/data/toulouse/scRNAseqCells-1/CellRanger/PC9_verte /data/villemin/data/toulouse/scRNA-ALL/CellRanger/
 #ln -s /data/villemin/data/toulouse/scRNAseqCells-1/CellRanger/PC9_rouge /data/villemin/data/toulouse/scRNA-ALL/CellRanger/
@@ -30,17 +31,41 @@
 #ln -s /data/villemin/data/toulouse/scRNAseqCells-2/CellRanger/OSI_TIPI_Vertes /data/villemin/data/toulouse/scRNA-ALL/CellRanger/
 
 ##################################################################
-############     qualityControl Bash         #####################
+############     QC PLOT        ##################################
 ##################################################################
 
-#Rscript /data/villemin/code/singleCell/R/qualityControl.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -f TRUE 4006_rouge 4006_verte CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes PC9_rouge PC9_verte
+#Rscript /data/villemin/code/singleCell/R/qualityControl.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -f TRUE CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes PC9_rouge PC9_verte 4006_rouge 4006_verte
 
-Rscript /data/villemin/code/singleCell/R/qualityControl.R -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -f TRUE Human_CTL_GRCh38 Human_OSI Human_OSI_TIPI Human_TIPI
+#Rscript /data/villemin/code/singleCell/R/qualityControl.R -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -f TRUE Human_CTL_GRCh38 Human_OSI Human_OSI_TIPI Human_TIPI
 
 ##################################################################
-############     qualityControl Bash         #####################
+############     FILTER          #################################
 ##################################################################
+
+#Rscript /data/villemin/code/singleCell/R/filterCells.R  -i /data/villemin/data/toulouse/scRNA-ALL/CellRanger/thresholds.csv -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -f TRUE CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes PC9_rouge PC9_verte 4006_rouge 4006_verte
+
+#Rscript /data/villemin/code/singleCell/R/filterCells.R  -i /data/villemin/data/toulouse/scRNAseqPDX/CellRanger/thresholds.csv -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -f TRUE Human_CTL_GRCh38 Human_OSI Human_OSI_TIPI Human_TIPI
+
+
+##################################################################
+############     SPEUDO-BULK DIFFERENTIAL          ###############
+##################################################################
+
+
+Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a 4006_rouge -b 4006_verte
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_rouge -b PC9_verte
+
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_verte -b 4006_verte
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_rouge -b 4006_rouge
+
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a 4006_rouge -b 4006_verte
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_rouge -b PC9_verte
+
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_verte -b 4006_verte
+#Rscript /data/villemin/code/singleCell/R/DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a PC9_rouge -b 4006_rouge
+
 
 #Rscript /data/villemin/code/singleCell/R/filterCells.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -f TRUE 4006_rouge 4006_verte CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes PC9_rouge PC9_verte -i /data/villemin/data/toulouse/scRNA-ALL/CellRanger/thresholds.csv
 
 #Rscript /data/villemin/code/singleCell/R/filterCells.R -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -f TRUE Human_CTL_GRCh38 Human_OSI Human_OSI_TIPI Human_TIPI OSI_TIPI_Vertes PC9_rouge PC9_verte -i /data/villemin/data/toulouse/scRNA-ALL/CellRanger/thresholds.csv
+

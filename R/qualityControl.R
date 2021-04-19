@@ -498,7 +498,7 @@ experiments.list[[condition]]$seurat.object  <-  CreateSeuratObject(Read10X_h5(g
 ###################################        Merge        #######################################################################################
 ###############################################################################################################################################
              
-if (length(experiments.list) > 1 ) {
+if (length(experiments.list) > 1 ) {  
     
 print("::: Merge :::")
 #By default, merge() will combine the Seurat objects based on the raw count matrices, erasing any previously normalized and scaled data matrices
@@ -506,7 +506,7 @@ print("::: Merge :::")
 # Merge the data slots instead of just merging the counts (which requires renormalization);
 # this is recommended if the same normalization approach was applied to all objects
 
-data <- merge(x=experiments.list[[1]]$seurat.object,y = unlist(map(experiments.list[-1],`[`,c("seurat.object")), use.names=FALSE), merge.data = TRUE,add.cell.ids =names(experiments.list))
+data <- merge(x = experiments.list[[1]]$seurat.object,y = unlist(map(experiments.list[-1],`[`,c("seurat.object")), use.names=FALSE), merge.data = TRUE,add.cell.ids = names(experiments.list))
 
 table(data$orig.ident)
 

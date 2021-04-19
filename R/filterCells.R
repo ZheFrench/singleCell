@@ -495,13 +495,17 @@ experiments.list[[condition]]$seurat.object  <-  CreateSeuratObject(Read10X_h5(g
     print(head(experiments.list[[condition]]$seurat.object@meta.data))
     #https://nbisweden.github.io/workshop-scRNAseq/labs/compiled/scater/scater_01_qc.html
     dim(experiments.list[[condition]]$seurat.object)
-    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nCount_RNA >= thresholds["nCount_RNA",condition]  )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nCount_RNA >= thresholds["nCount_RNA_low",condition]  )
+    experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nCount_RNA <= thresholds["nCount_RNA_high",condition]  )
+
     experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = nFeature_RNA >= thresholds["nFeature_RNA",condition]  )
+
     experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = log10GenesPerCount >=thresholds["log10GenesPerCount",condition] )
+    
     experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = mitoRatio < thresholds["mitoRatio",condition]  )
     experiments.list[[condition]]$seurat.object <- subset(x = experiments.list[[condition]]$seurat.object,subset = riboRatio > thresholds["riboRatio",condition] )
-
-    dim(experiments.list[[condition]]$seurat.object)     
+    dim(experiments.list[[condition]]$seurat.object) 
+    
     print("====> Control.Quality")
     # Create metadata dataframe
     seurat.to.sce <- control.quality (experiments.list[[condition]]$seurat.object,"Clean",condition)
@@ -511,7 +515,7 @@ experiments.list[[condition]]$seurat.object  <-  CreateSeuratObject(Read10X_h5(g
     experiments.list[[condition]]$seurat.object <- cell.cycle (experiments.list[[condition]]$seurat.object,"Clean",condition,seurat.to.sce)
    
     # Save cleaned single-cell experimnet as .RData to load at any time
-    saveRDS(experiments.list[[condition]]$seurat.object , file = "{base.dir}/{condition}_Clean.rds")
+    saveRDS(experiments.list[[condition]]$seurat.object , file = glue("{base.dir}/{condition}_Clean.rds"))
     
 }
                                                      
@@ -551,7 +555,7 @@ data <- ScaleData(data, features = rownames(data)) # After normalisation
 
 print ("::: PCA stuffs :::")
     
-pca.stuffs(data,"Raw",analysed.conditions.string)
+pca.stuffs(data,"Clean",analysed.conditions.string)
                          
                            
 print ("::: End :::")
@@ -598,11 +602,11 @@ str(combined)
 p1 <- DimPlot(combined, reduction = "umap", group.by = "orig.ident")
 p2 <- DimPlot(combined, reduction = "umap", label = TRUE, repel = TRUE)
 
-png(file = glue("{base.dir}/DE/{analysed.conditions.string}_1.png"),width = 750,height = 750)
+png(file = glue("{base.dir}/plots/{analysed.conditions.string}_1.png"),width = 750,height = 750)
 p1 | p2
 dev.off()
 
-png(file = glue("{base.dir}/DE/{analysed.conditions.string}_2.png"),width = 750,height = 750)
+png(file = glue("{base.dir}/plots/{analysed.conditions.string}_2.png"),width = 750,height = 750)
 DimPlot(combined, reduction = "umap", split.by = "orig.ident")
 dev.off()
 
@@ -611,12 +615,12 @@ DefaultAssay(combined) <- "RNA"
 nk.markers <- FindConservedMarkers(combined, ident.1 = 2, grouping.var = "orig.ident", verbose = FALSE)
 head(nk.markers)
 
-png(file = glue("{base.dir}/DE/{analysed.conditions.string}_3.png"),width = 750,height = 750)
+png(file = glue("{base.dir}/plots/{analysed.conditions.string}_3.png"),width = 750,height = 750)
 FeaturePlot(combined, features = c("BIRC5", "FOSL1", "ANLN", "FABP5", "MT2A", "AURKB", "MYOZ1", "CTGF", "ANKRD1", "BMF"), min.cutoff = "q9")
 dev.off()
 
 markers.to.plot <- c("BIRC5", "FOSL1", "ANLN", "FABP5", "MT2A", "AURKB", "MYOZ1", "CTGF", "ANKRD1", "BMF")
-png(file = glue("{base.dir}/DE/{analysed.conditions.string}_4.png"),width = 750,height = 750)
+png(file = glue("{base.dir}/plots/{analysed.conditions.string}_4.png"),width = 750,height = 750)
 DotPlot(combined, features = markers.to.plot, cols = c("blue", "red","orange", "green"), dot.scale = 8, split.by = "orig.ident") + RotatedAxis()
 dev.off()
 
