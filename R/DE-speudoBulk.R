@@ -8,9 +8,10 @@
 # Institute : IRCM
 #
 # DE-speudoBulk.R
+#
 # Usage : 
-# 
-# speudoBulk.R 
+# Rscript DE-speudoBulk.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a 4006_rouge -b 4006_verte
+#  
 #
 # Source : 
 # https://hbctraining.github.io/scRNA-seq/lessons/pseudobulk_DESeq2_scrnaseq.html
@@ -25,7 +26,7 @@
 #
 # SpeudoBulk.R differential Epresssion (DE) of scRNA-SEQ
 # Randomly assign equal number of cells in 3 groups, sum up reads, and do differential expression analysis
-#
+# 
 #################################################################
 
 suppressPackageStartupMessages(library(plyr))
@@ -55,20 +56,38 @@ suppressPackageStartupMessages(library(RColorBrewer))
 #######################################################################################################
 plotting = FALSE
 set.seed(100)
-# nCount_RNA   = the number of UMIs per cell nUMI
-# nFeature_RNA = the number of genes detected per cell nGene
-# ------------------------------------------------------------------------------------------------------------
-#cond1 = "OSI_TIPI_Vertes"
-#cond2 = "OSI_TIPI_Rouges"
-#cond1 = PC9_verte
-#cond2 = PC9_rouge
-#cond1 = "4006_verte"
-#cond2 = "4006_rouge"
-#base.dir = "/data/villemin/data/toulouse/scRNAseqCells-1/CellRanger"
-cond1 = "CTL_Vertes"
-cond2 = "CTL_Rouges"
 
-base.dir = "/data/villemin/data/toulouse/scRNAseqCells-2/CellRanger"
+# ------------------------------------------------------------------------------------------------------------
+library(optparse)
+option_list = list(
+  make_option(c("-d", "--directory"), type="character", default=NULL, help="Directory to look condition{x}.rds object.", metavar="PATH2DIRECTORY"),
+  make_option(c("-a", "--condition1"), type="character", default=TRUE, help="Condition 1", metavar="CONDITION1"),
+  make_option(c("-b", "--condition2"), type="character",  help="Condition 2", metavar="CONDITION2")
+
+)
+
+parser    = OptionParser(usage = "%prog [options] file ",option_list=option_list);
+arguments = parse_args(parser, positional_arguments = TRUE);
+opt  <- arguments$options
+args <- arguments$args
+
+
+print("> OPTS : ")
+print(opt$directory)
+print(opt$condition1)
+print(opt$condition2)
+
+print("> ARGS : ")
+print(args)
+
+cond1 = opt$condition1
+cond2 = opt$condition2
+
+base.dir = opt$directory
+
+
+seurat.Object.cond1 <- readRDS(file = glue("{base.dir}/{cond1}_Clean.rds"))
+seurat.Object.cond2 <- readRDS(file = glue("{base.dir}/{cond2}_Clean.rds"))
 
 # ------------------------------------------------------------------------------------------------------------
 dir.create(glue("{base.dir}/DE"), showWarnings = F)
@@ -76,7 +95,8 @@ dir.create(glue("{base.dir}/DE"), showWarnings = F)
     
 print(" Loading RDS.. ")
     
-seurat.Object <- readRDS(file = glue("{base.dir}/{cond1}_vs_{cond2}.rds"))
+seurat.Object <-  merge(x = seurat.Object.cond1, y = seurat.Object.cond2, add.cell.ids = c(cond1,cond2))#merge.data = TRUE,
+
 print(head(seurat.Object[[]])) # data@meta.data
 
 ################################################################################################################
@@ -97,10 +117,10 @@ length(sce.Object$ident)#5775
 
 nrows.cond1 = dim(sce.Object[, sce.Object$ident == cond1])[2]
 nrows.cond2 = dim(sce.Object[, sce.Object$ident == cond2])[2]
-print(nrows.cond1)
-print(nrows.cond2)
 
-#print(length(sce.Object[, sce.Object$ident==cond2]))
+print(glue("Cond1 # Cells {nrows.cond1}"))
+print(glue("Cond2 # Cells  {nrows.cond2}"))
+
 
 random1 <- sample.int(3, nrows.cond1,replace = TRUE,prob=c(0.33,0.33,0.33))
 random2 <- sample.int(3, nrows.cond2,replace = TRUE,prob=c(0.33,0.33,0.33))
@@ -198,17 +218,19 @@ print("DGE after Library Sizes Normalisation by TMM")
 dge$samples
               
 dge$samples$group <- sub("^(.*)-[0-9]", "\\1", rownames(dge$samples))
-dge$samples$group <- relevel(factor(dge$samples$group),ref=cond2)
+dge$samples$group <-  glue("condition_{dge$samples$group}")
 
-comp     <- glue("{cond1}-{cond2}")
+# names need to have specific format to go into model matrix meaning see help(names)
+dge$samples$group <- relevel(factor(dge$samples$group),ref = glue("condition_{cond2}"))
+
+comp     <- glue("condition_{cond1}-condition_{cond2}")
 
 de.design <- model.matrix(~0 + dge$samples$group)
 colnames(de.design) <- gsub("^dge\\$samples\\$group","",colnames(de.design))
 
+              
 cm     <- makeContrasts(contrasts = comp,levels = dge$samples$group)
 
-
-              
 dge    <- estimateDisp(dge, de.design,robust=T)
 
 fit.y  <- glmFit(dge, de.design)
