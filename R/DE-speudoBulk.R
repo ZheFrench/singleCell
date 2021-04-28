@@ -50,6 +50,7 @@ suppressPackageStartupMessages(library(limma))
 suppressPackageStartupMessages(library(ggrepel))
 suppressPackageStartupMessages(library(pheatmap))
 suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(tibble))
 
 #######################################################################################################
 ###################################       Load h5 files        ########################################
@@ -107,13 +108,21 @@ print(head(seurat.Object[[]])) # data@meta.data
 sce.Object       <- as.SingleCellExperiment(seurat.Object)
 sce.Object$ident <- sce.Object$orig.ident # Important due to a bug.
 
-print(glue("# Total Genes {dim(sce.Object)[1]}"))
+
+print(":: Idents :: ")
+print(unique(sce.Object$orig.ident))
+
+
+print(glue("# Total Cell {dim(colData(sce.Object))[1]}"))
 # Remove lowly expressed gene at cell level
 # Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (per conditions)
 sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
-print(glue("# Filtered Genes {dim(sce.Object)[1]}"))
+print(glue("# Filtered Cells {dim(colData(sce.Object))[1]}"))
 
-length(sce.Object$ident)#5775
+
+
+print(dim(sce.Object[, sce.Object$ident == cond1]))
+print(dim(sce.Object[, sce.Object$ident == cond2]))
 
 nrows.cond1 = dim(sce.Object[, sce.Object$ident == cond1])[2]
 nrows.cond2 = dim(sce.Object[, sce.Object$ident == cond2])[2]
@@ -122,8 +131,8 @@ print(glue("Cond1 # Cells {nrows.cond1}"))
 print(glue("Cond2 # Cells  {nrows.cond2}"))
 
 
-random1 <- sample.int(3, nrows.cond1,replace = TRUE,prob=c(0.33,0.33,0.33))
-random2 <- sample.int(3, nrows.cond2,replace = TRUE,prob=c(0.33,0.33,0.33))
+random1 <- sample.int(3, nrows.cond1,replace = TRUE,prob = c(0.33,0.33,0.33))
+random2 <- sample.int(3, nrows.cond2,replace = TRUE,prob = c(0.33,0.33,0.33))
 
 head(random1)
 head(random2)
@@ -150,6 +159,9 @@ print("##### INITIAL SINGLE CELLS ######")
 #print(head(rowData(sce.Object)))
 
 sce.Object$sample_id    <- paste(sce.Object$orig.ident, "-", sce.Object$subgroup,sep = "")
+sce.Object$cell <- rownames(colData(sce.Object)) 
+
+write.table(colData(sce.Object)[, c("cell","sample_id")] ,file = glue("{base.dir}/DE/{cond1}_{cond2}-randomize.tsv"),quote=F,row.names=F,sep="\t")
 
 # Not clear what kind of  witchcraft is used with m & subset.exp . Finger crossed.
 m          <- match(unique(sce.Object$sample_id), sce.Object$sample_id)
@@ -157,6 +169,7 @@ n_cells    <- as.numeric(table(sce.Object$sample_id))
 subset.exp <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL) 
 n_cells.speudoBulk.resume   <- subset.exp[, c("sample_id","orig.ident","n_cells")]
 print(n_cells.speudoBulk.resume)
+
 write.table(n_cells.speudoBulk.resume ,file = glue("{base.dir}/DE/{cond1}_{cond2}-nCell-speudoBulks.tsv"),quote=F,row.names=F,sep="\t")
 
 # Aggregate across cluster-sample groups

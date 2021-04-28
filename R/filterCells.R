@@ -56,6 +56,9 @@ suppressPackageStartupMessages(library(biomaRt))
 suppressPackageStartupMessages(library(purrr))
 suppressPackageStartupMessages(library(metap))
 suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(tricycle))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(tibble))
 
 #http://barc.wi.mit.edu/education/hot_topics/scRNAseq_2020/SingleCell_Seurat_2020.html
 
@@ -105,7 +108,7 @@ str(hs.pairs)
 cc.ensembl <- ensembl[ ensembl %in% unique(unlist(hs.pairs))] # 1189
 
 print("hs.pairs")
-print(length(cc.ensembl ))
+print(length(cc.ensembl))
 # define feature names in feature_symbol column
 rowData(seurat.to.sce)$feature_symbol <- rownames(seurat.to.sce)
 
@@ -134,11 +137,34 @@ ggplot(aes(x = orig.ident, fill = phases.cyclone)) +
 geom_bar(alpha = 0.2,colour="black") +  
 ggtitle("NCells")
     
-png(file = glue("{base.dir}/plots/{status}_{condition}_phase_histo_cyclone.png"),width = 1500,height = 500)
+png(file = glue("{base.dir}/plots/{status}_{condition}_phase_histo_cyclone.png"),width = 400,height = 600)
 print(histo.plot.phase + theme (axis.text = element_text(size = 14 )))
 dev.off()  
 
+# ------------------------------------------------------------------ 
+if(FALSE){
+# https://github.com/davemcg/scEiaD/blob/master/analysis/tricycle_cell_cycle.R
+print("tricycle")
+head(gene_names)
+print(rowData(seurat.to.sce))
+#row.names(seurat.to.sce) <- row.names(seurat.to.sce) %>% enframe(value = 'ID') %>% left_join(gene_names) %>% pull(Name)
+head(rowData(seurat.to.sce))
+seurat.to.sce <- project_cycle_space(seurat.to.sce, species = 'human', gname.type = 'SYMBOL')
+seurat.to.sce <- estimate_cycle_position(seurat.to.sce)
+seurat.to.sce <- estimate_cycle_stage(seurat.to.sce, gname.type = 'SYMBOL', species = 'human')
+                                            
                                                      
+histo.plot.phase.3cycle <- as.data.frame(colData(seurat.to.sce)) %>% 
+ggplot(aes(x = orig.ident, fill = CCStage)) + 
+geom_bar(alpha = 0.2,colour="black") +  
+ggtitle("NCells")
+    
+png(file = glue("{base.dir}/plots/{status}_{condition}_phase_histo_tricycle.png"),width = 400,height = 600)
+print(histo.plot.phase.3cycle + theme (axis.text = element_text(size = 14 )))
+dev.off()  
+}
+# ------------------------------------------------------------------                                                     
+                                               
 print("Normalize before calling Seurat CellCycleScoring")
 data <- NormalizeData(data)
 dim(x = data)
@@ -150,7 +176,7 @@ dim(x = data)
 #https://www.bioinformatics.babraham.ac.uk/training/10XRNASeq/seurat_workflow.html - Look cool plot
 data <- CellCycleScoring( object = data,g2m.features = cc.genes$g2m.genes,s.features = cc.genes$s.genes)#,  set.ident = TRUE
 
-png(file = glue("{base.dir}/plots/{status}_{condition}_cellcycle_score.png"),width = 1500,height = 500)
+png(file = glue("{base.dir}/plots/{status}_{condition}_cellcycle_score.png"),width = 400,height = 600)
 print(VlnPlot(data, features = c("S.Score","G2M.Score")))
 dev.off()
 #https://satijalab.org/seurat/articles/cell_cycle_vignette.html#assign-cell-cycle-scores
@@ -160,7 +186,7 @@ ggplot(aes(x=orig.ident, fill=Phase)) +
 geom_bar(alpha = 0.2,colour="black") +  
 ggtitle("NCells")
     
-png(file = glue("{base.dir}/plots/{status}_{condition}_phase_histo.png"),width = 1500,height = 500)
+png(file = glue("{base.dir}/plots/{status}_{condition}_phase_histo.png"),width = 400,height = 600)
 print(histo.plot.phase + theme (axis.text = element_text(size = 14 )))
 dev.off()  
 
@@ -467,7 +493,11 @@ thresholds <- fread(opt$input,data.table=F)
                                                      
 rownames(thresholds) <-  thresholds$FEATURE
 thresholds           <- subset(thresholds , select = -FEATURE ) 
-print(thresholds)                                         
+print(thresholds)              
+                                                     
+gene_names <- read_tsv('/data/villemin/code/singleCell/data/gene_name_ids.tsv.gz')
+                                                     
+
 for (condition in experiments.list ) {
    
     print(condition)   
@@ -510,6 +540,8 @@ experiments.list[[condition]]$seurat.object  <-  CreateSeuratObject(Read10X_h5(g
     # Create metadata dataframe
     seurat.to.sce <- control.quality (experiments.list[[condition]]$seurat.object,"Clean",condition)
   
+
+    
     print("====> Cell.cycle")
     # Normalisation is  done here
     experiments.list[[condition]]$seurat.object <- cell.cycle (experiments.list[[condition]]$seurat.object,"Clean",condition,seurat.to.sce)
