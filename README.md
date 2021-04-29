@@ -19,9 +19,12 @@ You will find bash and R scripts in two distincts directories.
 
 8. `plotclusterCells.R` load the *_integrated.rds file..
 
+9. `scfGSEA.R` fSGEA for speudo-bulk RnaSeq.
+
+
 In `bash/triggers`, there is bash scripts that call (trigger) other bash scripts...
 
 
 * `trigger_filterMouseReads.sh` call filterMouseReads.sh for several samples.
 
-* `trigger_qualityControl.sh` calls sequentially `qualityControl.R`, `filterCells.R` and `DE-speudoBulk.R` for several samples/conditions.
+* `trigger_main.sh` calls sequentially  bash scripts in core directory that call the core main R scripts `qualityControl.R`, `filterCells.R` , `DE-speudoBulk.R` and `scfGSEA.R` for several samples/conditions.
