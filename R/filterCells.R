@@ -582,12 +582,15 @@ print ("::: FindVariableFeatures & Scale :::")
 # These part need to be applied on a merge object.
 
 #data <- NormalizeData(data) No need to normalise if  merge.data = TRUE is set in merge
-data <- FindVariableFeatures(data, selection.method = "vst",nFeatures = 2000) #nFeatures=2000
-data <- ScaleData(data, features = rownames(data)) # After normalisation
+    
+# Comment these two parts
+#data <- FindVariableFeatures(data, selection.method = "vst",nFeatures = 2000) #nFeatures=2000
+#data <- ScaleData(data, features = rownames(data)) # After normalisation
 
 print ("::: PCA stuffs :::")
-    
-pca.stuffs(data,"Clean",analysed.conditions.string)
+
+# Comment these two parts
+#pca.stuffs(data,"Clean",analysed.conditions.string)
                          
                            
 print ("::: End :::")
@@ -597,7 +600,7 @@ saveRDS(data,file = glue("{base.dir}/{analysed.conditions.string}.rds"))
     
 }                 
                                                     
-
+stop("Finish ok !")
                                                      
 str(experiments.list)
 for (i in 1:length(experiments.list)) {

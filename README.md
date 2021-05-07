@@ -21,6 +21,7 @@ You will find bash and R scripts in two distincts directories.
 
 9. `scfGSEA.R` fSGEA for speudo-bulk RnaSeq.
 
+9. `tsne.R` plot tsne or umap for several experiments.
 
 In `bash/triggers`, there is bash scripts that call (trigger) other bash scripts...
 
