@@ -108,6 +108,8 @@ for (i in 1:length(list.objects.by.condition)){
  
 list.objects.by.condition[index] <- NULL      # Remove multiple list elements
 
+
+
 # select features that are repeatedly variable across datasets for integration
 features <- SelectIntegrationFeatures(object.list = list.objects.by.condition  )
 

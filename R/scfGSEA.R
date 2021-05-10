@@ -93,9 +93,10 @@ files.list <- list.files(glue("{base.dir}"),pattern="(*)-differential.tsv$")
 
 #h.All <- gmtPathways("/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt")# 50
 #h.All.bis <- read.gmt("/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt")
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt"
+file.gmt <- "/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt"
+#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c5.go.v7.2.symbols.gmt"
 
-file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c2.all.v7.2.symbols.gmt"
+#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c2.all.v7.2.symbols.gmt"
 #file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c3.tft.gtrd.v7.2.symbols.gmt"
 #file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c6.all.v7.2.symbols.gmt"
 #file.gmt <- "/data/villemin/annotation/gsea/MSigDB/jp.gmt"

@@ -26,6 +26,8 @@
 ###################################################################################
 
 #################  CELLS #################
+# With PC9_rouge PC9_verte
+#Rscript /data/villemin/code/singleCell/R/clusterCells.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -i  CTL_Rouges.CTL_Vertes.OSI_TIPI_Rouges.OSI_TIPI_Vertes.PC9_rouge.PC9_verte.4006_rouge.4006_verte CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes 4006_rouge 4006_verte 
 
 # With PC9_rouge PC9_verte
 #Rscript /data/villemin/code/singleCell/R/clusterCells.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -i  CTL_Rouges.CTL_Vertes.OSI_TIPI_Rouges.OSI_TIPI_Vertes.PC9_rouge.PC9_verte.4006_rouge.4006_verte CTL_Rouges CTL_Vertes OSI_TIPI_Rouges OSI_TIPI_Vertes 4006_rouge 4006_verte 

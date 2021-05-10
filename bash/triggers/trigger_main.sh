@@ -56,3 +56,5 @@
 #############################################################
 
 ./core/trigger_scfGSEA.sh
+
+#/data/villemin/soft/cellranger-6.0.0/bin/cellranger aggr --id=Cells --csv=aggregate.csv
