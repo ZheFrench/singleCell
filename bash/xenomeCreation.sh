@@ -107,6 +107,16 @@ cellranger mkref --genome=GRCh38 \
                  --fasta=Homo_sapiens.GRCh38.dna.primary_assembly.fa \
                  --genes=Homo_sapiens.GRCh38.83.filtered.gtf \
                  --ref-version=3.1.0
+
+# un pti malain avait bouger les liens symboliques.
+#ln -s  /share/apps/STAR/indexes/Mus_musculus-GRCm38.89/Mus_musculus.GRCm38.dna.primary_assembly.fa /data/villemin/genome/xenome/10X/Mus_musculus.GRCm38.dna.primary_assembly.fa
+#ln -s  /share/apps/STAR/indexes/Mus_musculus-GRCm38.89/Mus_musculus.GRCm38.89.gtf /data/villemin/genome/xenome/10X/Mus_musculus.GRCm38.89.gtf
+/data/villemin/soft/cellranger-6.0.0/bin/cellranger mkref --genome=mm10 \
+         --nthreads 12 \
+                 --fasta=Mus_musculus.GRCm38.dna.primary_assembly.fa \
+                 --genes=Mus_musculus.GRCm38.89.filtered.gtf \
+                 --ref-version=3.1.0
+
 # Behing the hood for the reference creation
 # STAR --runMode genomeGenerate \ 
 #--genomeDir /data/USERS/villemin/genome/xenome/10X/GRCh38_and_mm10/star \ 

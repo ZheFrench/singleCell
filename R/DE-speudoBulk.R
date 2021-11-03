@@ -98,6 +98,10 @@ print(" Loading RDS.. ")
     
 seurat.Object <-  merge(x = seurat.Object.cond1, y = seurat.Object.cond2, add.cell.ids = c(cond1,cond2))#merge.data = TRUE,
 
+#write.table(as.matrix(GetAssayData(object = seurat.Object, slot = "counts")), file =  glue("{base.dir}/DE/{cond1}_{cond2}_scCounts.tsv"), sep = '\t', row.names = T, col.names = T, quote = F)
+
+
+#
 print(head(seurat.Object[[]])) # data@meta.data
 
 ################################################################################################################
@@ -114,12 +118,13 @@ print(unique(sce.Object$orig.ident))
 
 
 print(glue("# Total Cell {dim(colData(sce.Object))[1]}"))
+print(glue("# Total Genes {length(rownames(counts(sce.Object)))}"))
 # Remove lowly expressed gene at cell level
 # Sum of each gene equal at least one UMI, and this criteria should be met amongst 10 cells. (per conditions)
 sce.Object <- sce.Object[rowSums(counts(sce.Object) > 1) >= 10, ]
+
 print(glue("# Filtered Cells {dim(colData(sce.Object))[1]}"))
-
-
+print(glue("# Total Genes {length(rownames(counts(sce.Object))) }"))
 
 print(dim(sce.Object[, sce.Object$ident == cond1]))
 print(dim(sce.Object[, sce.Object$ident == cond2]))
@@ -170,7 +175,7 @@ subset.exp <- data.frame(colData(sce.Object)[m, ], n_cells, row.names = NULL)
 n_cells.speudoBulk.resume   <- subset.exp[, c("sample_id","orig.ident","n_cells")]
 print(n_cells.speudoBulk.resume)
 
-write.table(n_cells.speudoBulk.resume ,file = glue("{base.dir}/DE/{cond1}_{cond2}-nCell-speudoBulks.tsv"),quote=F,row.names=F,sep="\t")
+write.table(n_cells.speudoBulk.resume ,file = glue("{base.dir}/DE/{cond1}_{cond2}-nCell-speudoBulks.tsv"),quote = F,row.names = F,sep = "\t")
 
 # Aggregate across cluster-sample groups
 groups <- colData(sce.Object)[, c("sample_id")]
@@ -181,10 +186,15 @@ counts=t(matrix.rnaseq)
 # ---------------------------------------------------------------------------------------------
 # Remove lowly expressed gene at speudo-bulk level
 # At leat 5 reads in 3 of pseudo bulk samples over 6
+write.table(counts,file = glue("{base.dir}/DE/{cond1}_{cond2}-counts.tsv"),quote = F,row.names = T,sep = "\t")
 
-good <- apply(counts,1,function(x) sum(x>5))>=3
-print(glue("# Filtered Genes {sum(good)}"))
+
+print(glue("# Filtered Genes {length(rownames(counts))}")) #12339
+#good <- apply(counts,1,function(x) sum(x>5)>=3 )## Filtered Genes 12339
+#good <- apply(counts,1,function(x) sum(x>=5) >=3 ) ## Filtered Genes 74034   rowSums( apply(counts,1,function(x) sum(x>5) ) >= 3
+good <- rowSums( apply(counts,1,function(x) x>= 5 ) ) >= 3
 counts <- counts[good,]
+print(glue("# Filtered Genes {length(rownames(counts))}"))
 
 # Remove  method from JC based on TMM, no need to do that twice, edgeR take into account raw reads.
 # https://www.biostars.org/p/317701/ 
@@ -247,7 +257,7 @@ cm     <- makeContrasts(contrasts = comp,levels = dge$samples$group)
 dge    <- estimateDisp(dge, de.design,robust=T)
 
 fit.y  <- glmFit(dge, de.design)
-lrt    <- glmLRT(fit.y,contrast=cm)
+lrt    <- glmLRT(fit.y,contrast = cm)
 
 head(de.design)
 #names(dge)
@@ -263,6 +273,8 @@ result <- cbind(genes = rownames(result), result, row.names = NULL)
 
 result     <- cbind(result,dge$counts[result$genes,])
 
+
+#foldchange2logratio(foldchange, base=2)
 
 write.table(result,file = glue("{base.dir}/DE/{cond1}_{cond2}-differential.tsv"),quote=F,row.names=F,sep="\t")
 
@@ -285,15 +297,15 @@ write.table(summary ,file = glue("{base.dir}/DE/{cond1}_{cond2}-summary.tsv"),qu
     
 print("Plotting...")
 #Plot the genewise biological coefficient of variation (BCV) against gene abundance (in log2 counts per million).
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_BCV.png"),width = 500,height = 500)
-plotBCV(dge,xlab="Average log CPM", ylab="Biological coefficient of variation", pch=16, cex=0.2) 
-dev.off()
+#png(file = glue("{base.dir}/DE/{cond1}_{cond2}_BCV.png"),width = 500,height = 500)
+#plotBCV(dge,xlab="Average log CPM", ylab="Biological coefficient of variation", pch=16, cex=0.2) 
+#dev.off()
 
 #Both of these functions plot the log-fold change (i.e. the log of the ratio of expression levels for each gene between two experimential groups) against the log-concentration (i.e. the overall average expression level for each gene across the two groups). To represent counts that were low (e.g. zero in 1 library and non-zero in the other) in one of the two conditions, a 'smear' of points at low A value is presented in 'plotSmear'
 de.genes <- rownames(topTags(lrt, adjust.method="BH",n=Inf, sort.by="PValue", p.value=0.05)$table)
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_smear.png"),width = 500,height = 500)
-plotSmear(lrt, de.tags=de.genes,xlab="Average logCPM", ylab="logFC", pch=19, cex=0.2) + geom_hline(yintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))
-dev.off()
+#png(file = glue("{base.dir}/DE/{cond1}_{cond2}_smear.png"),width = 500,height = 500)
+#plotSmear(lrt, de.tags=de.genes,xlab="Average logCPM", ylab="logFC", pch=19, cex=0.2) + geom_hline(yintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))
+#dev.off()
 
 #Plot samples on a two-dimensional scatterplot so that distances on the plot approximate the typical log2 fold changes between the samples.
 png(file = glue("{base.dir}/DE/{cond1}_{cond2}_mds.png"),width = 500,height = 500)
@@ -316,16 +328,16 @@ result$genelabels[1:n.top] <- result$genes[1:n.top]
 IDS <- as.character(result$genelabels[1:n.top])
 
 ## Volcano plot log10(0.1)-> -1
-png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
-ggplot(as.data.frame(result)) +
-        geom_point(aes(x = logFC, y = -log10(FDR + 0.1), colour = threshold)) +
-        geom_text_repel(aes(x = logFC, y = -log10(FDR + 0.1), label = ifelse(as.character(result$genes) %in% IDS  , IDS,"")),max.overlaps = Inf) +
-        xlab("Log2 fold change") + 
-        ylab("-Log10 FDR+0.1")        +
-        geom_hline(yintercept=-log10(0.1+0.05) ) + 
-        geom_vline(xintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))  +
-        theme(legend.position = "none" ) 
-dev.off()
+#png(file = glue("{base.dir}/DE/{cond1}_{cond2}_volcano.png"),width = 500,height = 1000)
+#ggplot(as.data.frame(result)) +
+#        geom_point(aes(x = logFC, y = -log10(FDR + 0.1), colour = threshold)) +
+ #       geom_text_repel(aes(x = logFC, y = -log10(FDR + 0.1), label = ifelse(as.character(result$genes) %in% IDS  , IDS,"")),max.overlaps = Inf) +
+#        xlab("Log2 fold change") + 
+#        ylab("-Log10 FDR+0.1")        +
+#        geom_hline(yintercept=-log10(0.1+0.05) ) + 
+#        geom_vline(xintercept=c(-1.5,1.5) , linetype=c("dashed","dashed"))  +
+#        theme(legend.position = "none" ) 
+#dev.off()
 
 ### Run pheatmap using n.top
 df.heatmap <- result[result$genes %in% IDS,]

@@ -35,3 +35,6 @@ Rscript /data/villemin/code/singleCell/R/DE-speudoBulk_cluster.R -d /data/villem
 #Rscript /data/villemin/code/singleCell/R/DE-speudoBulk_cluster.R -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -a Human_OSI_TIPI -b Human_OSI  -m MKI67
 #Rscript /data/villemin/code/singleCell/R/DE-speudoBulk_cluster.R -d /data/villemin/data/toulouse/scRNAseqPDX/CellRanger -a Human_OSI_TIPI -b Human_TIPI  -m MKI67
 
+# Check TWIST 1
+Rscript DE-speudoBulk_cluster.R -d /data/villemin/data/toulouse/scRNA-ALL/CellRanger -a 4006_verte -b CTL_Vertes -m TWIST1
+Rscript /data/villemin/code/singleCell/R/scfGSEA.R -d  /data/villemin/data/toulouse/scRNA-ALL/CellRanger/DE/TWIST1/4006_verte_CTL_Vertes/ -a H

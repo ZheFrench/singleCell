@@ -23,9 +23,11 @@
 #################################################################
 library(optparse)
 option_list = list(
-  make_option(c("-d", "--directory"), type="character", default=NULL, help="Directory to look for output directories of CellRanger. ", metavar="PATH2DIRECTORY")
+  make_option(c("-a", "--annotation"), type="character", default=NULL, help="Type of annotation", metavar="character"),
+  make_option(c("-d", "--directory"), type="character", default=NULL, help="Directory to find DE files.", metavar="character")
 
-)
+); 
+
 
 parser    = OptionParser(usage = "%prog [options] file ",option_list=option_list);
 arguments = parse_args(parser, positional_arguments = TRUE);
@@ -34,6 +36,8 @@ args <- arguments$args
 
 print("> OPTS : ")
 print(opt$directory)
+print(opt$annotation)
+
 print("> ARGS : ")
 print(args)
 
@@ -73,8 +77,8 @@ suppressPackageStartupMessages(library(reshape2))
 #######################################################################################################   
 
 
-
-base.dir = opt$directory
+annotation <- opt$annotation
+base.dir <- opt$directory
     
 
 dir.create(glue("{base.dir}/GSEA"), showWarnings = F)
@@ -83,31 +87,24 @@ dir.create(glue("{base.dir}/GSEA"), showWarnings = F)
 #https://github.com/ctlab/fgsea
 #https://stephenturner.github.io/deseq-to-fgsea/
 
-
-
 set.seed(423)
 #------------------------------------------------------------------------------
 #   Read directory with files previously created toorder by FC and apply fsGEA
 #------------------------------------------------------------------------------
 files.list <- list.files(glue("{base.dir}"),pattern="(*)-differential.tsv$")
 
-#h.All <- gmtPathways("/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt")# 50
-#h.All.bis <- read.gmt("/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt")
-file.gmt <- "/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt"
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c5.go.v7.2.symbols.gmt"
 
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c2.all.v7.2.symbols.gmt"
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c3.tft.gtrd.v7.2.symbols.gmt"
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c6.all.v7.2.symbols.gmt"
-#file.gmt <- "/data/villemin/annotation/gsea/MSigDB/jp.gmt"
-database <- basename(file.gmt)
+if (annotation == "C5"){file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c5.go.v7.2.symbols.gmt" }
+if (annotation == "C2"){file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c2.all.v7.2.symbols.gmt" }
+if (annotation == "C3"){file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c3.tft.gtrd.v7.2.symbols.gmt" }
+if (annotation == "C6"){file.gmt <- "/data/villemin/annotation/gsea/MSigDB/c6.all.v7.2.symbols.gmt" }
+if (annotation == "H"){file.gmt  <- "/data/villemin/annotation/gsea/MSigDB/h.all.v7.2.symbols.gmt" }
 
-final.file.padj <- glue("{base.dir}/GSEA/fgsea.{database}.padj.txt")
-final.file.nes  <- glue("{base.dir}/GSEA/fgsea.{database}.nes.txt")
-
+final.file.padj <- glue("{base.dir}/GSEA/fgsea.{annotation}.padj.txt")
+final.file.nes  <- glue("{base.dir}/GSEA/fgsea.{annotation}.nes.txt")
 
 h.All.bis <- gmtPathways(file.gmt) # 6226
-h.All <- read.gmt(file.gmt)
+h.All     <- read.gmt(file.gmt)
 
 subDir = sub(pattern = "(.*)\\..*$", replacement = "\\1", basename(file.gmt))
 
@@ -137,11 +134,12 @@ for (file in files.list){
   
   ranks <- deframe(dataframe.expression)
 
-  #not using fgseaMultilevel...a really tiny difference in NES score due to the fact it use fgsea.
   # But genes used are the same so I used it to plot with heatplot function of clusterProfiler the leading edge genes contained in the signature I am interested in
-  egmt2 <- GSEA(ranks_decreasing, TERM2GENE = h.All, by = "fgsea",verbose = TRUE ,nPermSimple = 10000 ,minGSSize  = 10, maxGSSize  = 325 , eps = 0,  pvalueCutoff = 1)
-  # You dont need the whole object to be written
-  write.table(egmt2, file=glue("{subpath}/{file}-full-gsea-clusterprofiler.tsv"),quote=F,row.names=F,sep="\t")
+  #egmt2 <- GSEA(ranks_decreasing, TERM2GENE = h.All, by = "fgsea",verbose = TRUE ,nPermSimple = 10000 ,minGSSize  = 10, maxGSSize  = 325 , eps = 0,  pvalueCutoff = 1)
+    # You dont need the whole object to be written 
+    #not using fgseaMultilevel...a really tiny difference in NES score due to the fact it use fgsea.
+
+  #write.table(egmt2, file=glue("{subpath}/{file}-full-gsea-clusterprofiler.tsv"),quote=F,row.names=F,sep="\t")
 
   # Yeah I do it again (I know.Don't say a fucking word moron.)
   fgseaRes     <- fgseaMultilevel(pathways= h.All.bis, stats=ranks,eps = 0, nPermSimple = 10000 ,minSize  = 10, maxSize  = 325)
@@ -150,7 +148,7 @@ for (file in files.list){
     if (pathway %in% c("BLUM_RESPONSE_TO_SALIRASIB_DN","BLUM_RESPONSE_TO_SALIRASIB_UP" )){
       #print(pathway)
       #print(h.All[[pathway]])
-      p<- plotEnrichment(h.All.bis[[pathway]], ranks) + labs(title=pathway)
+      p <- plotEnrichment(h.All.bis[[pathway]], ranks) + labs(title = pathway)
     
       png(file=glue("{subpath}/{file}-{pathway}.png"))
       print(p)
@@ -161,61 +159,58 @@ for (file in files.list){
   
   fgseaResTidy <- fgseaRes %>% as_tibble()
 
-  fwrite( filter(fgseaResTidy ,padj <= 1), file=glue("{subpath}/{file}-full-fgsea.tsv"), sep="\t", sep2=c("", "/", ""))
+  fwrite( filter(fgseaResTidy ,padj <= 1), file = glue("{subpath}/{file}-full-fgsea.tsv"), sep = "\t", sep2 = c("", "/", ""))
 
   topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n = 10), pathway]
 
   topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n = 10), pathway]
 
-  
   topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
   
   png(file=glue("{subpath}/{file}-top-global.png"),width = 900)
   plotGseaTable(h.All.bis[topPathways], ranks, fgseaRes, gseaParam = 0.5) 
   dev.off()
+    
   
-  
-  png(file=glue("{subpath}/{file}-global.png"),width = 900)
-  print(ggplot( filter(fgseaResTidy ,abs(NES) >= 1.7), aes(reorder(pathway, NES), NES)) +
-    geom_col( aes(fill=padj<0.01),color="#5F6368") +
-    coord_flip() +
-    labs(x="Pathway", y="Normalized Enrichment Score",title=file) + 
-    theme_minimal())
-  dev.off()
-  
-  test <- c("PRC2_EZH2_UP.V1_UP","PRC2_EZH2_UP.V1_DN","BLUM_RESPONSE_TO_SALIRASIB_DN","BLUM_RESPONSE_TO_SALIRASIB_UP","E2F1_UP.V1_UP","E2F1_UP.V1_DN")
-  
+  #png(file=glue("{subpath}/{file}-global.png"),width = 900,heigh=2000)
+  #print(ggplot( filter(fgseaResTidy ,abs(NES) >= 1.7), aes(reorder(pathway, NES), NES)) +
+  #  geom_col( aes(fill=padj<0.01),color="#5F6368") +
+  #  coord_flip() +
+  #  labs(x="Pathway", y="Normalized Enrichment Score",title=file) + 
+  #  theme_minimal())
+  #dev.off()
+    
   #write.table(dataframe.expression,glue("/home/jp/eclipse-workspace/Toulouse/data/results/{cellline}/{file}-expresssion.tsv"),quote=F,row.names=T,sep="\t")
 
-  heatplot_up <- heatplot(egmt2,foldChange = ranks, showCategory =   topPathwaysUp)
+  #heatplot_up <- heatplot(egmt2,foldChange = ranks, showCategory =   topPathwaysUp)
   #png(file=glue("/home/jp/eclipse-workspace/Toulouse/data/results/{cellline}/{file}-heatplot-up-gsea.png"),width=2000)   
   #print(  heatplot_up + theme(  axis.text.y = element_text( size = 12)))
   #dev.off()
 
-  heatmap.reshaped <- dcast(heatplot_up$data, categoryID~Gene, value.var='foldChange')
+ # heatmap.reshaped <- dcast(heatplot_up$data, categoryID~Gene, value.var='foldChange')
   
-  rownames(heatmap.reshaped)<- heatmap.reshaped[,1]
-  heatmap.reshaped<- heatmap.reshaped[,-1]
-  heatmap.reshaped[is.na(heatmap.reshaped)] <- 100
+  #rownames(heatmap.reshaped)<- heatmap.reshaped[,1]
+  #heatmap.reshaped<- heatmap.reshaped[,-1]
+  #heatmap.reshaped[is.na(heatmap.reshaped)] <- 100
   #heatmap.reshaped[heatmap.reshaped !=0] <- 1
   #write.table(heatplot_up$data,glue("{subpath}/expresssion-up-gsea.tsv"),quote=F,row.names=F,sep="\t")
-  write.table(heatmap.reshaped,glue("{subpath}/{file}-genes-nes-up.tsv"),quote=F,row.names=T,col.names=NA,sep="\t")
+  #write.table(heatmap.reshaped,glue("{subpath}/{file}-genes-nes-up.tsv"),quote=F,row.names=T,col.names=NA,sep="\t")
 
-  heatplot_down <-  heatplot(egmt2,foldChange=ranks, showCategory = topPathwaysDown)
+  #heatplot_down <-  heatplot(egmt2,foldChange=ranks, showCategory = topPathwaysDown)
   #png(file=glue("{subpath}/{file}-heatplot-down-gsea.png"),width=2000)   
   #print(heatplot_down + theme(  axis.text.y = element_text( size = 12))) 
   #dev.off()
   
-  heatmap.reshaped <- dcast(heatplot_down$data, categoryID~Gene, value.var='foldChange')
-  rownames(heatmap.reshaped)<- heatmap.reshaped[,1]
-  heatmap.reshaped<- heatmap.reshaped[,-1]
+  #heatmap.reshaped <- dcast(heatplot_down$data, categoryID~Gene, value.var='foldChange')
+  #rownames(heatmap.reshaped)<- heatmap.reshaped[,1]
+  #heatmap.reshaped<- heatmap.reshaped[,-1]
   
-  heatmap.reshaped[is.na(heatmap.reshaped)] <- 100
+  #heatmap.reshaped[is.na(heatmap.reshaped)] <- 100
   #heatmap.reshaped[heatmap.reshaped !=0] <- 1
   
   #write.table(heatplot_down$data,glue("{subpath}/expresssion-down-gsea.tsv"),quote=F,row.names=F,sep="\t")
 
-  write.table(heatmap.reshaped,glue("{subpath}/{file}-genes-nes-down.tsv"),quote=F,row.names=T,col.names=NA,sep="\t")
+  #write.table(heatmap.reshaped,glue("{subpath}/{file}-genes-nes-down.tsv"),quote=F,row.names=T,col.names=NA,sep="\t")
   
   final.padj <-  fgseaResTidy %>% select(-leadingEdge, -pval,-log2err,-size, -ES,-NES)%>% rename(!!file  :=  padj)
   final.nes  <-  fgseaResTidy %>% select(-leadingEdge, -pval,-log2err,-size, -ES,-padj)%>% rename(!!file :=  NES)
@@ -226,7 +221,7 @@ for (file in files.list){
     dataset.padj <- final.padj
     dataset.nes  <- final.nes
     next
-    }
+  }
   
   # if the merged dataset does exist, append to it 
   if (exists("dataset.padj")){
@@ -234,14 +229,17 @@ for (file in files.list){
     temp_dataset.padj <-  fgseaResTidy %>% select(-leadingEdge, -pval,-log2err,-size, -ES,-NES)%>% rename( !!file := padj)
     temp_dataset.nes  <-  fgseaResTidy %>% select(-leadingEdge, -pval,-log2err,-size, -ES,-padj)%>% rename(!!file :=  NES)
     
-    dataset.padj <- inner_join(dataset.padj,temp_dataset.padj, by =c("pathway"),keep=FALSE)
-    dataset.nes<- inner_join(dataset.nes,temp_dataset.nes, by =c("pathway"),keep=FALSE)
+    dataset.padj <- inner_join(dataset.padj,temp_dataset.padj, by = c("pathway"),keep = FALSE)
+    dataset.nes <- inner_join(dataset.nes,temp_dataset.nes, by = c("pathway"),keep = FALSE)
     
     rm(temp_dataset.padj)
     rm(temp_dataset.nes)
+      
     
   }
+    
 i=i+1
+    
 }
 
 
